@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  nginx:
+    build: ./ngix
+    ports:
+      - "8080:80"
+    depends_on:
+      - frontend
+      - user-service
+      - code-manager-service
+      - chatbot-service
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+  user-service:
+    build: ./services/user
+    ports:
+      - "8001:8001"
+    networks:
+      - app-network
+
+  code-manager-service:
+    build: ./services/code_manager
+    ports:
+      - "8002:8002"
+    networks:
+      - app-network
+
+  chatbot-service:
+    build: ./services/chatbot
+    ports:
+      - "8003:8003"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
