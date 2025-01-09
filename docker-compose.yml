@@ -29,10 +29,17 @@ services:
 
   code-manager-service:
     build: ./services/code_manager
+    volumes:
+      - ./services/code_manager:/app
+      # - ./services/code_manager/tmp:/usr/src/app:rw
+      - /tmp/code_manager:/tmp/code_manager:rw
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8002:8002"
     networks:
       - app-network
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
 
   chatbot-service:
     build: ./services/chatbot
