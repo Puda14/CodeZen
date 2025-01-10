@@ -1,40 +1,70 @@
-from fastapi import FastAPI, HTTPException, status # type: ignore
-from app.models.request import CodeExecutionRequest, CodeEvaluationRequest
-from app.services.code_executor import execute_code
-from app.services.code_evaluate import evaluate_code
+import uuid
+import time
+import logging
+from fastapi import FastAPI, HTTPException  # type: ignore
+from app.models.rabbitmq import RabbitMQClient
+from app.models.request import CodeExecutionRequest, Task
 
 app = FastAPI()
+rabbitmq = RabbitMQClient()
 
-@app.get("/")
-def read_root():
-  return {"message": "Code Manager Service is running"}
+@app.on_event("startup")
+async def startup_event():
+  """
+  Startup event to declare queues and initialize RabbitMQ connection.
+  """
+  rabbitmq.declare_queue("code_execution_tasks")
+  rabbitmq.declare_queue("code_evaluation_tasks")
+  rabbitmq.declare_ttl_queue("response_queue", ttl_ms=5000) 
+
+@app.on_event("shutdown")
+async def shutdown_event():
+  """
+  Shutdown event to close RabbitMQ connection.
+  """
+  rabbitmq.close()
+
+def handle_task(queue_name: str, task_type: str, request: CodeExecutionRequest, timeout: int):
+  """
+  Handle task logic for publishing to a queue and waiting for a response.
+
+  Args:
+    queue_name (str): The RabbitMQ queue to publish the task.
+    task_type (str): Type of the task, e.g., "execute" or "evaluate".
+    request (CodeExecutionRequest): The incoming request data.
+    timeout (int): Timeout for waiting for a response.
+
+  Returns:
+    dict: Response message from the worker.
+  """
+  try:
+    correlation_id = str(uuid.uuid4())
+    task = Task(type=task_type, data=request, correlation_id=correlation_id)
+    rabbitmq.publish(queue_name, task.dict())
+
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+      message = rabbitmq.get_message("response_queue")
+      if message and message.get("correlation_id") == correlation_id:
+        logging.info(f"Response found for correlation_id: {correlation_id}")
+        return message
+      time.sleep(0.5)
+
+    raise HTTPException(status_code=504, detail="Timeout waiting for task result.")
+  except Exception as e:
+    logging.error(f"Error processing task '{task_type}': {e}")
+    raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/execute", status_code=200)
 async def execute_code_endpoint(request: CodeExecutionRequest):
   """
-  API endpoint to execute user-submitted code and return the result.
+  API endpoint to enqueue a code execution task and return the result.
   """
-  # return {"message": "Code Manager Service is running"}
-  try:
-    result = await execute_code(request)
-    return result
-  except Exception as e:
-    raise HTTPException(
-      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      detail=str(e)
-    )
+  return handle_task(queue_name="code_execution_tasks", task_type="execute", request=request, timeout=10)
 
 @app.post("/testcase", status_code=200)
 async def evaluate_testcases_endpoint(request: CodeExecutionRequest):
   """
-  API endpoint to evaluate user-submitted code against testcases.
+  API endpoint to evaluate test cases.
   """
-  try:
-    results = await evaluate_code(request)
-    return results
-  except Exception as e:
-    raise HTTPException(
-      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      detail=str(e)
-    )
-
+  return handle_task(queue_name="code_evaluation_tasks", task_type="evaluate", request=request, timeout=30)
