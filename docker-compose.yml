@@ -13,6 +13,23 @@ services:
     networks:
       - app-network
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app-network
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+      RABBITMQ_HEARTBEAT: 3600 
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   frontend:
     build: ./frontend
     ports:
@@ -31,15 +48,32 @@ services:
     build: ./services/code_manager
     volumes:
       - ./services/code_manager:/app
-      # - ./services/code_manager/tmp:/usr/src/app:rw
+    ports:
+      - "8002:8002"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+
+  code-execute-worker-service:
+    build: ./services/code_execute_worker
+    volumes:
+      - ./services/code_execute_worker:/app
       - /tmp/code_manager:/tmp/code_manager:rw
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "8002:8002"
+      - "8012:8012"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - app-network
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
 
   chatbot-service:
     build: ./services/chatbot
