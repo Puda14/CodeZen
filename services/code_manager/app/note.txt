@@ -77,9 +77,23 @@ curl -X POST http://localhost:8080/api/code-manager/execute -H "Content-Type: ap
   "input_data": "2"
 }'
 
+#include<iostream>
+int main() { 
+      char n; 
+      std::cin >> n; 
+      std::cout << n << '\n' << n; 
+     return 0; 
+}
+
 curl -X POST http://localhost:8080/api/code-manager/execute -H "Content-Type: application/json" -d '{
   "processor": "python",
   "code": "print(\"Hello\")",
+  "input_data": ""
+}'
+
+curl -X POST http://localhost:8080/api/code-manager/execute -H "Content-Type: application/json" -d '{
+  "processor": "python",
+  "code": "print(\'Hello\')",
   "input_data": ""
 }'
 
