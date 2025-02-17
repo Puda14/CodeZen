@@ -1,6 +1,6 @@
 "use client";
 
-import { useToast } from "../context/ToastProvider";
+import { useToast } from "../../context/ToastProvider";
 
 export default function Template() {
   const headers = ["ID", "Name", "Status"];
@@ -13,7 +13,7 @@ export default function Template() {
   const { showToast } = useToast();
 
   return (
-    <div className="">
+    <div className="mt-0">
       <h1 className="text-4xl font-bold mb-6 text-center">Template</h1>
       <h1>Tiêu đề trang 1</h1>
       <h2>Tiêu đề trang 2</h2>

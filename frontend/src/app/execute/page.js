@@ -1,9 +1,9 @@
 "use client";
 
-import useCodeExecution from "../hooks/useCodeExecution";
-import MonacoCodeEditor from "../components/MonacoCodeEditor";
-import InputOutput from "../components/InputOutput";
-import ExecuteButtons from "../components/ExecuteButtons";
+import useCodeExecution from "../../hooks/useCodeExecution";
+import MonacoCodeEditor from "../../components/MonacoCodeEditor";
+import InputOutput from "../../components/InputOutput";
+import ExecuteButtons from "../../components/ExecuteButtons";
 
 const ExecutePage = () => {
   const {

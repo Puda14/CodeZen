@@ -1,5 +1,9 @@
+"use client";
+
 import { Geist, Geist_Mono } from "next/font/google";
-import { ToastProvider } from "./context/ToastProvider";
+import { ToastProvider } from "../context/ToastProvider";
+import { ThemeProvider, useTheme } from "../context/ThemeContext";
+import Header from "../components/Layout/Header";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,19 +16,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
-  title: "CodeZen",
-  description: "Your zen zone for coding.",
-};
-
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark">
+    <ThemeProvider>
+      <ThemeWrapper>{children}</ThemeWrapper>
+    </ThemeProvider>
+  );
+}
+
+const ThemeWrapper = ({ children }) => {
+  const { theme } = useTheme();
+
+  return (
+    <html lang="en" className={theme === "dark" ? "dark" : "light"}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased transition-colors duration-300 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100`}
       >
+        <Header />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );
-}
+};

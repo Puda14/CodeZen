@@ -1,12 +1,12 @@
 "use client";
 
-import useFetchProblem from "../hooks/useFetchProblem";
-import useCodeExecution from "../hooks/useCodeExecution";
-import ProblemDescription from "../components/ProblemDescription";
-import InputOutput from "../components/InputOutput";
-import ExecuteButtons from "../components/ExecuteButtons";
-import TestcaseResults from "../components/TestcaseResults";
-import MonacoCodeEditor from "../components/MonacoCodeEditor";
+import useFetchProblem from "../../hooks/useFetchProblem";
+import useCodeExecution from "../../hooks/useCodeExecution";
+import ProblemDescription from "../../components/ProblemDescription";
+import InputOutput from "../../components/InputOutput";
+import ExecuteButtons from "../../components/ExecuteButtons";
+import TestcaseResults from "../../components/TestcaseResults";
+import MonacoCodeEditor from "../../components/MonacoCodeEditor";
 
 const ProblemPage = () => {
   const { problemDescription } = useFetchProblem();

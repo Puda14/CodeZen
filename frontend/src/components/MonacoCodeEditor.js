@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import dynamic from "next/dynamic";
+import { useTheme } from "../context/ThemeContext";
 import { handleFileUpload } from "../utils/fileUtils";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -9,6 +10,8 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 });
 
 const MonacoCodeEditor = ({ code, setCode, language, setLanguage }) => {
+  const { theme } = useTheme();
+
   return (
     <div className="p-4 w-full max-w-4xl mx-auto">
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -30,7 +33,7 @@ const MonacoCodeEditor = ({ code, setCode, language, setLanguage }) => {
       <div className="mt-4 border rounded-md">
         <MonacoEditor
           height="400px"
-          theme="vs-dark"
+          theme={theme === "dark" ? "vs-dark" : "vs-light"}
           language={language}
           value={code}
           onChange={setCode}
