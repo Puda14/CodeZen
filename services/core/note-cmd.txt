@@ -1,0 +1,25 @@
+nest g controller <controller name>
+nest g service <service name>
+
+npm install class-validator class-transformer
+
+npm install prisma --save-dev
+npx prisma init
+prisma init: Tạo thư mục prisma/ và file cấu hình schema.prisma.
+
+npx prisma generate
+prisma generate: Tạo Prisma Client từ schema.prisma.
+
+mongoDB
+mongosh -u root -p password --authenticationDatabase admin
+use core-database
+db.createUser({
+  user: "core",
+  pwd: "12345678",
+  roles: [
+    { role: "readWrite", db: "core-database" }
+  ]
+})
+show users
+mongodb://<username>:<password>@<host>:<port>/<database>?authSource=<authDatabase>
+db.users.deleteOne({ _id: ObjectId("id") })

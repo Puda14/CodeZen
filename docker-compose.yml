@@ -1,13 +1,13 @@
-version: '3.8'
+version: "3.8"
 
 services:
   nginx:
-    build: ./ngix
+    build: ./nginx
     ports:
       - "8080:80"
     depends_on:
       - frontend
-      - user-service
+      - core-service
       - code-manager-service
       - chatbot-service
     networks:
@@ -23,12 +23,25 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
-      RABBITMQ_HEARTBEAT: 3600 
+      RABBITMQ_HEARTBEAT: 3600
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    networks:
+      - app-network
 
   frontend:
     build: ./frontend
@@ -40,12 +53,17 @@ services:
     networks:
       - app-network
 
-  user-service:
-    build: ./services/user
+  core-service:
+    build: ./services/core
     ports:
       - "8001:8001"
+    volumes:
+      - ./services/core:/usr/src/app
+      - /usr/src/app/node_modules
     networks:
       - app-network
+    environment:
+      - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database
 
   code-manager-service:
     build: ./services/code_manager
@@ -60,6 +78,7 @@ services:
       - app-network
     environment:
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - MONGO_URL=mongodb://root:password@mongo:27017
 
   code-execute-worker-service:
     build: ./services/code_execute_worker
@@ -84,6 +103,11 @@ services:
       - "8003:8003"
     networks:
       - app-network
+    environment:
+      - MONGO_URL=mongodb://root:password@mongo:27017
+
+volumes:
+  mongo-data:
 
 networks:
   app-network:
