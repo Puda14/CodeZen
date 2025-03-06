@@ -23,3 +23,16 @@ db.createUser({
 show users
 mongodb://<username>:<password>@<host>:<port>/<database>?authSource=<authDatabase>
 db.users.deleteOne({ _id: ObjectId("id") })
+db.contests.find().pretty()
+
+Create Key mongo:
+openssl rand -base64 756 > mongo-keyfile
+chmod 999 mongo-keyfile
+
+sudo docker exec -it mongo mongosh -u root -p password --authenticationDatabase admin
+
+db.<collection_name>.deleteMany({})
+
+db.contests.deleteMany({})
+db.problems.deleteMany({})
+db.testcases.deleteMany({})

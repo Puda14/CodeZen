@@ -48,13 +48,17 @@ export class UserService {
     return { accessToken };
   }
 
-  async findById(userId: string): Promise<{ email: string; username: string }> {
-    const user = await this.userModel.findById(userId).select('email username');
+  async findById(userId: string): Promise<{ _id: string; email: string; username: string }> {
+    const user = await this.userModel.findById(userId).select('_id email username');
 
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw new NotFoundException('User not found');
     }
 
-    return { email: user.email, username: user.username };
+    return { _id: user._id, email: user.email, username: user.username };
+  }
+
+  async findByEmail(email: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ email }).exec();
   }
 }
