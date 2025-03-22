@@ -16,13 +16,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       jwtFromRequest: ExtractJwt.fromHeader('x-access-token'),
       ignoreExpiration: false,
       secretOrKey: secret,
-    });    
+    });
   }
 
   async validate(payload: any) {
-    if (!payload) {
+    if (!payload || !payload._id || !payload.email) {
       throw new UnauthorizedException();
     }
-    return { userId: payload.sub, email: payload.email };
+    return { userId: payload._id, email: payload.email };
   }
 }
