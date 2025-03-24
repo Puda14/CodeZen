@@ -1,0 +1,77 @@
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
+import { Job } from 'bullmq';
+import { Logger } from '@nestjs/common';
+import { ContestService } from '../contest.service';
+import { ContestStatus } from '../../common/enums/contest.enum';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+
+@Processor('contestQueue')
+export class ContestProcessor extends WorkerHost {
+  private readonly logger = new Logger(ContestProcessor.name);
+
+  constructor(
+    private readonly contestService: ContestService,
+    @InjectQueue('contestQueue') private readonly contestQueue: Queue
+  ) {
+    super();
+    this.logger.log('✅ ContestProcessor initialized.');
+  }
+
+  async process(job: Job<any>) {
+    this.logger.log(`🚀 Processing job ${job.id} of type ${job.name}`);
+
+    switch (job.name) {
+      case 'updateStatus': {
+        const { contestId, newStatus } = job.data;
+        this.logger.log(`🔄 Updating contest ${contestId} status to ${newStatus}`);
+
+        try {
+          const updatedContest = await this.contestService.updateContestStatus(contestId, newStatus);
+
+          if (!updatedContest) {
+            this.logger.warn(`⚠️ Contest ${contestId} not found.`);
+            return;
+          }
+
+          this.logger.log(`✅ Contest ${contestId} updated to ${newStatus}`);
+
+          if (newStatus === ContestStatus.ONGOING) {
+            const now = new Date();
+            const endTime = new Date(updatedContest.end_time);
+            const delay = endTime.getTime() - now.getTime();
+
+            if (delay > 0) {
+              this.logger.log(`📅 Scheduling contest ${contestId} to finish in ${delay} ms`);
+              await this.contestQueue.add(
+                'updateStatus',
+                { contestId, newStatus: ContestStatus.FINISHED },
+                { delay }
+              );
+            } else {
+              this.logger.warn(`⚠️ Contest ${contestId} end_time already passed, skipping scheduling.`);
+            }
+          }
+        } catch (error) {
+          this.logger.error(`❌ Failed to update contest ${contestId}: ${error.message}`);
+          throw error;
+        }
+        break;
+      }
+
+      default:
+        this.logger.warn(`⚠️ Unknown job type: ${job.name}`);
+        break;
+    }
+  }
+
+  @OnWorkerEvent('completed')
+  onCompleted(job: Job) {
+    this.logger.log(`✅ Job ${job.id} completed successfully.`);
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, error: Error) {
+    this.logger.error(`❌ Job ${job.id} failed: ${error.message}`);
+  }
+}

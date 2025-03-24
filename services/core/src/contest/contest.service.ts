@@ -14,6 +14,7 @@ import { TestcaseDto } from '../testcase/dto/testcase.dto';
 import { UpdateProblemDto } from '../problem/dto/update-problem.dto';
 import { UpdateTestcaseDto } from '../testcase/dto/update-testcase.dto';
 import { ContestStatus } from '../common/enums/contest.enum';
+import { ContestQueueService } from './queue/contest.queue.service'
 
 @Injectable()
 export class ContestService {
@@ -22,6 +23,7 @@ export class ContestService {
     private problemService: ProblemService,
     private testcaseService: TestcaseService,
     private userService: UserService,
+    private contestQueueService: ContestQueueService,
     @InjectConnection() private readonly connection: Connection,
   ) { }
 
@@ -41,13 +43,35 @@ export class ContestService {
         createdProblems.push(problem);
       }
 
+      const now = new Date();
+      const nowUtc = new Date(now.toISOString());
+      const startTime = new Date(contestDto.start_time);
+      const endTime = new Date(contestDto.end_time);
+
+      let status = ContestStatus.UPCOMING;
+
+      if (nowUtc >= startTime && nowUtc < endTime) {
+        status = ContestStatus.ONGOING;
+      } else if (nowUtc >= endTime) {
+        status = ContestStatus.FINISHED;
+      }
+
       const createdContest = await this.contestModel.create(
-        [{ ...contestDto, owner: user._id, problems: createdProblems.map(problem => problem._id) }],
+        [{
+          ...contestDto,
+          owner: user._id,
+          problems: createdProblems.map(problem => problem._id),
+          status: status
+        }],
         { session }
       );
 
       await session.commitTransaction();
       session.endSession();
+
+      if (status === ContestStatus.UPCOMING) {
+        await this.contestQueueService.scheduleContest(createdContest[0]);
+      }
 
       return {
         message: 'Contest created successfully',
@@ -354,9 +378,40 @@ export class ContestService {
       }
     }
 
-    await this.contestModel.findByIdAndUpdate(contestId, {
-      $set: updateContestDto
-    });
+    await this.contestModel.findByIdAndUpdate(contestId, { $set: updateContestDto });
+
+    const updatedContest = await this.contestModel.findById(contestId);
+    if (!updatedContest) {
+      throw new NotFoundException(`Contest with ID ${contestId} not found after update`);
+    }
+
+    if (updateContestDto.start_time && updatedContest.status === ContestStatus.UPCOMING) {
+      console.log(`♻️ Rescheduling jobs for contest ${contestId} (start_time changed)`);
+
+      const jobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
+      await Promise.all(jobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
+
+      await this.contestQueueService.scheduleContest(updatedContest);
+      console.log(`✅ Successfully rescheduled contest ${contestId}`);
+    }
+
+    if (updateContestDto.end_time && updatedContest.status === ContestStatus.ONGOING) {
+      console.log(`♻️ Rescheduling finish job for contest ${contestId} (end_time changed)`);
+
+      const finishJobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
+      await Promise.all(finishJobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
+
+      const now = new Date();
+      const newEndTime = new Date(updatedContest.end_time);
+      const delay = newEndTime.getTime() - now.getTime();
+
+      if (delay > 0) {
+        console.log(`📅 Scheduling new finish job for contest ${contestId} in ${delay} ms`);
+        await this.contestQueueService.scheduleFinishContest(updatedContest);
+      } else {
+        console.warn(`⚠️ Contest ${contestId} end_time already passed, skipping rescheduling.`);
+      }
+    }
   }
 
   async addProblemToContest(
@@ -619,6 +674,14 @@ export class ContestService {
     }
 
     return this.problemService.getProblemWithAllTestcases(problemId);
+  }
+
+  async updateContestStatus(contestId: string, newStatus: ContestStatus): Promise<ContestDocument | null> {
+    return this.contestModel.findByIdAndUpdate(
+      contestId,
+      { status: newStatus },
+      { new: true }
+    ).exec();
   }
 }
 
