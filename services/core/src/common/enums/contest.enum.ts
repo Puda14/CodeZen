@@ -14,3 +14,12 @@ export enum RegistrationStatus {
   APPROVED = 'approved',
   REJECTED = 'rejected'
 }
+
+export enum ContestPhase {
+  BEFORE_CONTEST,
+  DURING_CONTEST,
+  AFTER_CONTEST,
+  ANY
+}
+
+export const CONTEST_PHASE_KEY = 'contestPhase';

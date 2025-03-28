@@ -36,3 +36,9 @@ db.<collection_name>.deleteMany({})
 db.contests.deleteMany({})
 db.problems.deleteMany({})
 db.testcases.deleteMany({})
+
+bullmq
+KEYS bull:*
+ZRANGE bull:contestQueue:delayed 0 -1 WITHSCORES
+HGETALL bull:<queue_name>:<job_id>
+DEL bull:<queue_name>:delayed

@@ -11,6 +11,9 @@ import { UpdateProblemDto } from '../problem/dto/update-problem.dto';
 import { Problem } from '../problem/problem.schema';
 import { UpdateTestcaseDto } from '../testcase/dto/update-testcase.dto';
 import { ContestStatus } from '../common/enums/contest.enum';
+import { ContestPhase } from '../common/enums/contest.enum';
+import { ContestStatusGuard } from './contest-status.guard';
+import { ContestPhaseRequired } from './contest-phase.decorator';
 
 @Controller('contest')
 export class ContestController {
@@ -34,7 +37,8 @@ export class ContestController {
   }
 
   @Post(':id/register')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ContestStatusGuard)
+  @ContestPhaseRequired(ContestPhase.BEFORE_CONTEST)
   @HttpCode(HttpStatus.OK)
   async registerForContest(@Param('id') contestId: string, @Request() req: any): Promise<{ message: string }> {
     const userId = req.user.userId;
@@ -43,6 +47,8 @@ export class ContestController {
   }
 
   @Delete(':id/register')
+  @UseGuards(JwtAuthGuard, ContestStatusGuard)
+  @ContestPhaseRequired(ContestPhase.BEFORE_CONTEST)
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async cancelContestRegistration(@Param('id') contestId: string, @Request() req: any): Promise<{ message: string }> {
@@ -74,7 +80,8 @@ export class ContestController {
   }
 
   @Get(':id/details')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ContestStatusGuard)
+  @ContestPhaseRequired(ContestPhase.DURING_CONTEST)
   async getContestDetails(@Param('id') contestId: string, @Request() req: any): Promise<ContestDocument> {
     const userId = req.user.userId;
     return this.contestService.getContestDetails(contestId, userId);
@@ -213,7 +220,8 @@ export class ContestController {
   }
 
   @Get(':contestId/problems/:problemId/contestant')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ContestStatusGuard)
+  @ContestPhaseRequired(ContestPhase.DURING_CONTEST)
   async getProblemForContestant(
     @Param('contestId') contestId: string,
     @Param('problemId') problemId: string,

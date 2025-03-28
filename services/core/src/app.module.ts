@@ -6,13 +6,17 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 
 import { MongooseConfigService } from './config/mongoose-config.service';
-import { validationPipeConfig } from './config/validation.pipe.config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { ContestModule } from './contest/contest.module';
 import { ProblemModule } from './problem/problem.module';
 import { TestcaseModule } from './testcase/testcase.module';
 
+import { BullModule } from '@nestjs/bullmq';
+import { RedisHealthIndicator } from './common/health/redis.health';
+import { HealthController } from './common/health/health.controller';
+import { TerminusModule } from '@nestjs/terminus';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -32,8 +36,20 @@ import { TestcaseModule } from './testcase/testcase.module';
     ProblemModule,
 
     TestcaseModule,
+
+    ScheduleModule.forRoot(),
+
+    TerminusModule.forRoot(),
+    BullModule.forRoot({
+      connection: {
+        host: 'redis',
+        port: 6379,
+        maxRetriesPerRequest: null,
+      }
+    }),
+    BullModule.registerQueue({ name: 'contestQueue' })
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, HealthController],
+  providers: [AppService, RedisHealthIndicator],
 })
-export class AppModule {}
+export class AppModule { }

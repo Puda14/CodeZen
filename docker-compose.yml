@@ -83,10 +83,30 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    privileged: true
+
   core-service:
     build: ./services/core
     ports:
       - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
     volumes:
       - ./services/core:/usr/src/app
       - /usr/src/app/node_modules
@@ -94,6 +114,7 @@ services:
       - app-network
     environment:
       - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
+      - REDIS_URL=redis://redis:6379
 
   code-manager-service:
     build: ./services/code_manager
@@ -138,6 +159,7 @@ services:
 
 volumes:
   mongo-data:
+  redis-data:
 
 networks:
   app-network:
