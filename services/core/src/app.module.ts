@@ -17,6 +17,15 @@ import { BullModule } from '@nestjs/bullmq';
 import { RedisHealthIndicator } from './common/health/redis.health';
 import { HealthController } from './common/health/health.controller';
 import { TerminusModule } from '@nestjs/terminus';
+
+import { CacheModule } from '@nestjs/cache-manager';
+// import { Keyv } from 'keyv';
+// import KeyvRedis from '@keyv/redis';
+// import { createKeyv } from '@keyv/redis';
+// import { ConfigService } from '@nestjs/config';
+// import { CacheableMemory } from 'cacheable';
+import * as redisStore from 'cache-manager-redis-store';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -47,7 +56,30 @@ import { TerminusModule } from '@nestjs/terminus';
         maxRetriesPerRequest: null,
       }
     }),
-    BullModule.registerQueue({ name: 'contestQueue' })
+
+    // CacheModule.registerAsync({
+    //   isGlobal: true,
+    //   useFactory: async () => {
+    //     return {
+    //       stores: [
+    //         createKeyv('redis://redis:6379'),
+    //         // new Keyv({
+    //         //   store: new CacheableMemory({ ttl: 60000, lruSize: 5000 }),
+    //         // }),
+    //       ],
+    //     };
+    //   },
+    // }),
+
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: () => ({
+        store: redisStore,
+        host: 'redis',
+        port: 6379,
+        ttl: 600,
+      })
+    })
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, RedisHealthIndicator],

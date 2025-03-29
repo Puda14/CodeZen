@@ -5,6 +5,7 @@ import { ContestService } from '../contest.service';
 import { ContestStatus } from '../../common/enums/contest.enum';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { ContestCacheService } from '../cache/contest.cache.service';
 
 @Processor('contestQueue')
 export class ContestProcessor extends WorkerHost {
@@ -12,6 +13,7 @@ export class ContestProcessor extends WorkerHost {
 
   constructor(
     private readonly contestService: ContestService,
+    private readonly contestCacheService: ContestCacheService,
     @InjectQueue('contestQueue') private readonly contestQueue: Queue
   ) {
     super();
@@ -37,6 +39,13 @@ export class ContestProcessor extends WorkerHost {
           this.logger.log(`✅ Contest ${contestId} updated to ${newStatus}`);
 
           if (newStatus === ContestStatus.ONGOING) {
+            this.logger.log(`💾 Caching contest ${contestId}`);
+
+            const formattedContest = await this.contestService.fetchFullContestDetails(contestId);
+            console.log(`🔍 Fetched contest details:`, JSON.stringify(formattedContest, null, 2));
+
+            await this.contestCacheService.setCachedContest(contestId, formattedContest, 6000000);
+
             const now = new Date();
             const endTime = new Date(updatedContest.end_time);
             const delay = endTime.getTime() - now.getTime();
@@ -52,6 +61,12 @@ export class ContestProcessor extends WorkerHost {
               this.logger.warn(`⚠️ Contest ${contestId} end_time already passed, skipping scheduling.`);
             }
           }
+
+          if (newStatus === ContestStatus.FINISHED) {
+            this.logger.log(`🗑️ Removing contest ${contestId} from cache`);
+            await this.contestCacheService.deleteCachedContest(contestId);
+          }
+
         } catch (error) {
           this.logger.error(`❌ Failed to update contest ${contestId}: ${error.message}`);
           throw error;
