@@ -14,7 +14,8 @@ import { TestcaseDto } from '../testcase/dto/testcase.dto';
 import { UpdateProblemDto } from '../problem/dto/update-problem.dto';
 import { UpdateTestcaseDto } from '../testcase/dto/update-testcase.dto';
 import { ContestStatus } from '../common/enums/contest.enum';
-import { ContestQueueService } from './queue/contest.queue.service'
+import { ContestQueueService } from './queue/contest.queue.service';
+import { ContestCacheService } from './cache/contest.cache.service';
 
 @Injectable()
 export class ContestService {
@@ -24,6 +25,7 @@ export class ContestService {
     private testcaseService: TestcaseService,
     private userService: UserService,
     private contestQueueService: ContestQueueService,
+    private readonly contestCacheService: ContestCacheService,
     @InjectConnection() private readonly connection: Connection,
   ) { }
 
@@ -201,50 +203,28 @@ export class ContestService {
   }
 
   async getContestDetails(contestId: string, userId: string): Promise<ContestDocument> {
-    const contest = await this.contestModel.findById(contestId);
+    let contest = await this.contestCacheService.getCachedContest(contestId);
+
+    if (!contest) {
+      console.log(`❌ Cache miss: Fetching contest ${contestId} from MongoDB`);
+      contest = await this.fetchFullContestDetails(contestId);
+    } else {
+      console.log(`✅ Cache hit: Contest ${contestId} loaded from Redis`);
+    }
 
     if (!contest) {
       throw new NotFoundException(`Contest with ID ${contestId} not found`);
     }
 
     const userRegistration = contest.registrations.find(
-      reg => reg.user.toString() === userId && reg.status === 'approved'
+      reg => reg.user._id?.toString() === userId && reg.status === 'approved'
     );
 
     if (!userRegistration) {
       throw new ForbiddenException('You must be an approved participant to view contest details');
     }
 
-    return await this.contestModel
-      .findById(contestId)
-      .populate('owner', '_id username email')
-      .populate({
-        path: 'problems',
-        model: 'Problem',
-        populate: {
-          path: 'testcases',
-          model: 'Testcase',
-          transform: (doc) => {
-            if (doc.isPublic) {
-              return {
-                _id: doc._id,
-                score: doc.score,
-                input: doc.input,
-                output: doc.output,
-                isPublic: true
-              };
-            } else {
-              return {
-                _id: doc._id,
-                score: doc.score
-              };
-            }
-          }
-        }
-      })
-      .select('-registrations')
-      .orFail(new NotFoundException(`Contest with ID ${contestId} not found`))
-      .exec();
+    return this.transformContestResponse(contest);
   }
 
   async getContestBasicInfo(contestId: string): Promise<Partial<ContestDocument>> {
@@ -412,6 +392,10 @@ export class ContestService {
         console.warn(`⚠️ Contest ${contestId} end_time already passed, skipping rescheduling.`);
       }
     }
+
+    if (updatedContest.status === ContestStatus.ONGOING) {
+      await this.updateContestCache(contestId);
+    }
   }
 
   async addProblemToContest(
@@ -569,6 +553,10 @@ export class ContestService {
     }
 
     await this.problemService.updateProblemData(problemId, updateProblemDto);
+
+    if (contest.status === ContestStatus.ONGOING) {
+      await this.updateContestCache(contestId);
+    }
   }
 
   async updateTestcases(
@@ -608,6 +596,10 @@ export class ContestService {
       const { id, ...updateData } = testcase;
       await this.testcaseService.updateTestcase(id, updateData);
     }
+
+    if (contest.status === ContestStatus.ONGOING) {
+      await this.updateContestCache(contestId);
+    }
   }
 
   async getContestsByStatus(status: ContestStatus): Promise<Contest[]> {
@@ -638,24 +630,34 @@ export class ContestService {
   }
 
   async getProblemForContestant(contestId: string, problemId: string, userId: string): Promise<Problem> {
-    const contest = await this.contestModel.findById(contestId);
+
+    let contest = await this.contestCacheService.getCachedContest(contestId);
+
+    if (!contest) {
+      console.log(`❌ Cache miss: Fetching contest ${contestId} from MongoDB`);
+      contest = await this.fetchFullContestDetails(contestId);
+    } else {
+      console.log(`✅ Cache hit: Contest ${contestId} loaded from Redis`);
+    }
+
     if (!contest) {
       throw new NotFoundException('Contest not found');
     }
 
-    const problemExists = contest.problems.some(p => p.toString() === problemId);
-    if (!problemExists) {
+    const problem = contest.problems.find(p => p._id.toString() === problemId);
+    if (!problem) {
       throw new NotFoundException('Problem not found in this contest');
     }
 
     const isRegistered = contest.registrations.some(
-      reg => reg.user.toString() === userId && reg.status === 'approved'
+      reg => reg.user._id?.toString() === userId && reg.status === 'approved'
     );
+
     if (!isRegistered) {
       throw new ForbiddenException('You are not registered for this contest');
     }
 
-    return this.problemService.getProblemWithPublicTestcases(problemId);
+    return this.transformProblemResponse(problem);
   }
 
   async getProblemForOwner(contestId: string, problemId: string, userId: string): Promise<Problem> {
@@ -682,6 +684,118 @@ export class ContestService {
       { status: newStatus },
       { new: true }
     ).exec();
+  }
+
+  async fetchFullContestDetails(contestId: string): Promise<any> {
+    const contest = await this.contestModel
+      .findById(contestId)
+      .populate('owner', '_id username email')
+      .populate({
+        path: 'problems',
+        model: 'Problem',
+        populate: {
+          path: 'testcases',
+          model: 'Testcase',
+          transform: (doc) => {
+            if (doc.isPublic) {
+              return {
+                _id: doc._id,
+                score: doc.score,
+                input: doc.input,
+                output: doc.output,
+                isPublic: true
+              };
+            } else {
+              return {
+                _id: doc._id,
+                score: doc.score
+              };
+            }
+          }
+        }
+      })
+      .populate({
+        path: 'registrations.user',
+        model: 'User',
+        select: '_id username email'
+      })
+      .select('-__v')
+      .orFail(new NotFoundException(`Contest with ID ${contestId} not found`))
+      .exec();
+
+    return contest;
+  }
+
+  async transformContestResponse(contest: any): Promise<any> {
+    return {
+      _id: contest._id,
+      title: contest.title,
+      start_time: contest.start_time,
+      end_time: contest.end_time,
+      owner: contest.owner,
+      status: contest.status,
+      description: contest.description,
+      isPublic: contest.isPublic,
+      leaderboardStatus: contest.leaderboardStatus,
+      problems: contest.problems.map(problem => ({
+        _id: problem._id,
+        name: problem.name,
+        content: problem.content,
+        difficulty: problem.difficulty,
+        tags: problem.tags,
+        testcases: problem.testcases?.map(tc =>
+          tc.isPublic
+            ? {
+              _id: tc._id,
+              score: tc.score,
+              input: tc.input,
+              output: tc.output,
+              isPublic: true
+            }
+            : {
+              _id: tc._id,
+              score: tc.score
+            }
+        ) || []
+      }))
+    };
+  }
+
+  async transformProblemResponse(problem: any): Promise<any> {
+    return {
+      _id: problem._id,
+      name: problem.name,
+      content: problem.content,
+      difficulty: problem.difficulty,
+      tags: problem.tags,
+      testcases: problem.testcases?.map(tc =>
+        tc.isPublic
+          ? {
+            _id: tc._id,
+            score: tc.score,
+            input: tc.input,
+            output: tc.output,
+            isPublic: true
+          }
+          : {
+            _id: tc._id,
+            score: tc.score
+          }
+      ) || []
+    };
+  }
+
+  async updateContestCache(contestId: string) {
+    const fullContestDetails = await this.fetchFullContestDetails(contestId);
+
+    const cachedContest = await this.contestCacheService.getCachedContest(contestId);
+
+    if (!cachedContest || JSON.stringify(cachedContest) !== JSON.stringify(fullContestDetails)) {
+      console.log(`🔄 Updating cache for contest ${contestId}`);
+      await this.contestCacheService.setCachedContest(contestId, fullContestDetails, 6000000);
+    } else {
+      console.log(`✅ Cache is already up-to-date for contest ${contestId}, skipping update.`);
+    }
   }
 }
 
