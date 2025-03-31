@@ -92,4 +92,4 @@ import { createKeyv } from '@keyv/redis';
   controllers: [AppController, HealthController],
   providers: [AppService, RedisHealthIndicator],
 })
-export class AppModule {}
+export class AppModule { }

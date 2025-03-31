@@ -39,4 +39,4 @@ import { ContestCacheService } from './cache/contest.cache.service';
   controllers: [ContestController, QueueController],
   exports: [ContestService, ContestCacheService],
 })
-export class ContestModule {}
+export class ContestModule { }
