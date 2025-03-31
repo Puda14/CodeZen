@@ -13,6 +13,8 @@ import { QueueController } from './queue/queue.controller';
 import { ContestQueueService } from './queue/contest.queue.service';
 import { ContestProcessor } from './queue/contest.processor';
 
+import { ContestCacheService } from './cache/contest.cache.service';
+
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Contest.name, schema: ContestSchema }]),
@@ -27,8 +29,14 @@ import { ContestProcessor } from './queue/contest.processor';
       }
     }),
   ],
-  providers: [ContestService, ContestStatusGuard, ContestQueueService, ContestProcessor],
+  providers: [
+    ContestService,
+    ContestStatusGuard,
+    ContestQueueService,
+    ContestProcessor,
+    ContestCacheService
+  ],
   controllers: [ContestController, QueueController],
-  exports: [ContestService,],
+  exports: [ContestService, ContestCacheService],
 })
 export class ContestModule { }
