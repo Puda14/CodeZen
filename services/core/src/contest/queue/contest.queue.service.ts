@@ -19,6 +19,9 @@ export class ContestQueueService implements OnModuleInit {
 
     console.log('🔄 Loading upcoming contests into queue...');
     await this.scheduleUpcomingContests();
+
+    console.log('🔄 Loading ongoing contests into queue...');
+    await this.scheduleFinishJobsForOngoingContests();
   }
 
   async cleanupDelayedJobs() {
@@ -64,6 +67,21 @@ export class ContestQueueService implements OnModuleInit {
       }
     }
     console.log('✅ All upcoming contests have been scheduled.');
+  }
+
+  async scheduleFinishJobsForOngoingContests() {
+    const nowUtc = new Date(new Date().toISOString());
+
+    const ongoingContests = await this.contestModel.find({
+      status: ContestStatus.ONGOING,
+      end_time: { $gt: nowUtc }
+    });
+
+    for (const contest of ongoingContests) {
+      await this.scheduleFinishContest(contest);
+    }
+
+    console.log(`✅ Rescheduled ${ongoingContests.length} finish jobs for ongoing contests.`);
   }
 
   async scheduleContest(contest: ContestDocument) {
@@ -123,5 +141,4 @@ export class ContestQueueService implements OnModuleInit {
       return null;
     }
   }
-
 }

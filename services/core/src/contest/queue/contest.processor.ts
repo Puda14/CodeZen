@@ -42,7 +42,6 @@ export class ContestProcessor extends WorkerHost {
             this.logger.log(`💾 Caching contest ${contestId}`);
 
             const formattedContest = await this.contestService.fetchFullContestDetails(contestId);
-            console.log(`🔍 Fetched contest details:`, JSON.stringify(formattedContest, null, 2));
 
             await this.contestCacheService.setCachedContest(contestId, formattedContest, 6000000);
 
