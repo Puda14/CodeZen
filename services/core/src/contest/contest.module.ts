@@ -24,9 +24,9 @@ import { ContestCacheService } from './cache/contest.cache.service';
     BullModule.registerQueue({
       name: 'contestQueue',
       connection: {
-        host: 'redis',
-        port: 6379
-      }
+        host: 'localhost',
+        port: 6380,
+      },
     }),
   ],
   providers: [
@@ -34,9 +34,9 @@ import { ContestCacheService } from './cache/contest.cache.service';
     ContestStatusGuard,
     ContestQueueService,
     ContestProcessor,
-    ContestCacheService
+    ContestCacheService,
   ],
   controllers: [ContestController, QueueController],
   exports: [ContestService, ContestCacheService],
 })
-export class ContestModule { }
+export class ContestModule {}

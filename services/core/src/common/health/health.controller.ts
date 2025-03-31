@@ -6,14 +6,14 @@ import { RedisHealthIndicator } from './redis.health';
 export class HealthController {
   constructor(
     private health: HealthCheckService,
-    private redisHealth: RedisHealthIndicator
-  ) { }
+    private redisHealth: RedisHealthIndicator,
+  ) {}
 
-  @Get()
-  @HealthCheck()
-  check() {
-    return this.health.check([
-      () => this.redisHealth.isHealthy('redis')
-    ]);
-  }
+  // @Get()
+  // @HealthCheck()
+  // check() {
+  //   return this.health.check([
+  //     () => this.redisHealth.isHealthy('redis')
+  //   ]);
+  // }
 }

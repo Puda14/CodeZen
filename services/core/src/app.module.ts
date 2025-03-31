@@ -21,10 +21,10 @@ import { TerminusModule } from '@nestjs/terminus';
 import { CacheModule } from '@nestjs/cache-manager';
 // import { Keyv } from 'keyv';
 // import KeyvRedis from '@keyv/redis';
-// import { createKeyv } from '@keyv/redis';
+import { createKeyv } from '@keyv/redis';
 // import { ConfigService } from '@nestjs/config';
 // import { CacheableMemory } from 'cacheable';
-import * as redisStore from 'cache-manager-redis-store';
+// import * as redisStore from 'cache-manager-redis-store';
 
 @Module({
   imports: [
@@ -51,10 +51,18 @@ import * as redisStore from 'cache-manager-redis-store';
     TerminusModule.forRoot(),
     BullModule.forRoot({
       connection: {
-        host: 'redis',
-        port: 6379,
+        host: 'localhost',
+        port: 6380,
         maxRetriesPerRequest: null,
-      }
+      },
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: () => {
+        return {
+          stores: [createKeyv('redis://localhost:6380')],
+        };
+      },
     }),
 
     // CacheModule.registerAsync({
@@ -71,17 +79,17 @@ import * as redisStore from 'cache-manager-redis-store';
     //   },
     // }),
 
-    CacheModule.registerAsync({
-      isGlobal: true,
-      useFactory: () => ({
-        store: redisStore,
-        host: 'redis',
-        port: 6379,
-        ttl: 600,
-      })
-    })
+    // CacheModule.registerAsync({
+    //   isGlobal: true,
+    //   useFactory: () => ({
+    //     store: redisStore,
+    //     host: 'redis',
+    //     port: 6379,
+    //     ttl: 600,
+    //   }),
+    // }),
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, RedisHealthIndicator],
 })
-export class AppModule { }
+export class AppModule {}
