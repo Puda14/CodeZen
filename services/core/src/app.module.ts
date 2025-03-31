@@ -20,11 +20,10 @@ import { TerminusModule } from '@nestjs/terminus';
 
 import { CacheModule } from '@nestjs/cache-manager';
 import { Keyv } from 'keyv';
-import KeyvRedis from '@keyv/redis';
 import { createKeyv } from '@keyv/redis';
-import { ConfigService } from '@nestjs/config';
 import { CacheableMemory } from 'cacheable';
-import * as redisStore from 'cache-manager-redis-store';
+
+import { Logger } from '@nestjs/common';
 
 @Module({
   imports: [
@@ -63,8 +62,9 @@ import * as redisStore from 'cache-manager-redis-store';
         const redisStore = createKeyv('redis://redis:6379');
         const memoryStore = new Keyv({ store: new CacheableMemory() });
 
-        console.log('✅ Using Redis store:', redisStore.opts.store?.constructor.name);
-        console.log('✅ Using Memory store:', memoryStore.opts.store?.constructor.name);
+        const logger = new Logger('CacheModule');
+        logger.log(`✅ Using Redis store: ${redisStore.opts.store?.constructor.name}`);
+        logger.log(`✅ Using Memory store: ${memoryStore.opts.store?.constructor.name}`);
 
         return {
           stores: [redisStore, memoryStore],

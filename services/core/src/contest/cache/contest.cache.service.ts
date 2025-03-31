@@ -9,24 +9,12 @@ export class ContestCacheService {
     console.log('🔍 Testing Redis Cache...');
 
     try {
-      await this.cacheManager.set('test_key', 'test_value', 600); // TTL = 600s
+      await this.cacheManager.set('test_key', 'test_value');
       console.log('✅ Cache SET successful');
       const value = await this.cacheManager.get('test_key');
       console.log('🔍 Retrieved from cache:', value);
     } catch (error) {
       console.error('❌ Cache test failed:', error.message);
-    }
-
-    const store: any = this.cacheManager;
-
-    const keyv = store;
-    const storeName = keyv.opts?.store?.constructor?.name;
-    console.log('🔍 Using store:', storeName);
-
-    if (storeName === 'CacheableMemory') {
-      console.log('🧠 All keys:', [...keyv.store.store.keys()]);
-    } else if (storeName === 'KeyvRedis') {
-      console.log('📦 Using Redis, cannot inspect keys directly here');
     }
   }
 
