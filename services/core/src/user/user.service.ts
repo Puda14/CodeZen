@@ -14,40 +14,6 @@ export class UserService {
     private readonly authService: AuthService,
   ) { }
 
-  async register(dto: RegisterDto): Promise<{ message: string }> {
-    const { email, username, password } = dto;
-
-    const existingUser = await this.userModel.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
-      throw new ConflictException('Email or username already exists.');
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new this.userModel({ email, username, password: hashedPassword });
-
-    await user.save();
-
-    return { message: 'User registered successfully' };
-  }
-
-
-  async login(dto: LoginDto): Promise<{ accessToken: string }> {
-    const { email, password } = dto;
-
-    const user = await this.userModel.findOne({ email });
-    if (!user) {
-      throw new NotFoundException('User not found.');
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Incorrect password.');
-    }
-
-    const accessToken = this.authService.generateJwt(user._id.toString(), user.email);
-    return { accessToken };
-  }
-
   async findById(userId: string): Promise<{ _id: string; email: string; username: string }> {
     const user = await this.userModel.findById(userId).select('_id email username');
 
