@@ -100,6 +100,19 @@ services:
       retries: 5
     privileged: true
 
+  auth-service:
+    build: ./services/auth
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./services/auth:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - app-network
+    environment:
+      - JWT_SECRET=your-secret-key
+      - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
+
   core-service:
     build: ./services/core
     ports:
