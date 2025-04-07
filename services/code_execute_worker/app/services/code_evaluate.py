@@ -1,28 +1,34 @@
 import os
+import json
 import logging
-
-from app.testcases import testcases 
 
 from app.services.file_manager import save_code_and_input
 from app.services.docker_handler import run_code_in_docker
-from app.exceptions import CodeExecutionException
 from app.processor_config import PROCESSOR_CONFIG
-from app.exceptions import UnsupportedLanguageException
+from app.exceptions import CodeExecutionException, UnsupportedLanguageException
+
+# TESTCASE_PATH = os.path.join(os.path.dirname(__file__), "testcases.json")
+
 
 async def evaluate_code(request):
-  """
-  Execute user code and return result.
-  """
   if request.processor not in PROCESSOR_CONFIG:
     raise UnsupportedLanguageException(request.processor)
-  
+
+  testcases = getattr(request, "testcases", None)
+  if not testcases or not isinstance(testcases, list):
+    raise ValueError("No testcases provided in request.")
+
   results = []
   passed_count = 0
   failed_count = 0
+  total_score = 0
 
-  for test_id, testcase in testcases.items():
-    input_data = testcase["input"]
-    expected_result = testcase["result"]
+  for idx, testcase in enumerate(testcases, start=1):
+    test_id = f"test{idx:02d}"
+    input_data = testcase.get("input", "")
+    expected_result = testcase.get("output", "").strip()
+    score = testcase.get("score", 0)
+    is_public = testcase.get("isPublic", False)
 
     user_dir = save_code_and_input(
       code=request.code,
@@ -32,37 +38,45 @@ async def evaluate_code(request):
 
     try:
       result = run_code_in_docker(user_dir=user_dir, processor=request.processor).strip()
+
       if result == expected_result:
         results.append({
           "test_case": test_id,
           "status": "passed",
           "output": result,
+          "score": score
         })
         passed_count += 1
+        total_score += score
       else:
-        results.append({
+        res = {
           "test_case": test_id,
           "status": "failed",
           "output": result,
-          "expected": expected_result
-        })
+          "score": 0
+        }
+        if is_public:
+          res["expected"] = expected_result
+        results.append(res)
         failed_count += 1
+
     except CodeExecutionException as e:
       results.append({
         "test_case": test_id,
         "status": "error",
-        "error_message": e.detail
+        "error_message": e.detail,
+        "score": 0
       })
       failed_count += 1
     except Exception as e:
       results.append({
         "test_case": test_id,
         "status": "error",
-        "error_message": str(e)
+        "error_message": str(e),
+        "score": 0
       })
       failed_count += 1
     finally:
-      # Clean up temporary files
       if os.path.exists(user_dir):
         for root, dirs, files in os.walk(user_dir, topdown=False):
           for name in files:
@@ -70,13 +84,13 @@ async def evaluate_code(request):
           for name in dirs:
             os.rmdir(os.path.join(root, name))
         os.rmdir(user_dir)
-      logging.error(f"Finally block executed.")
 
   return {
     "results": results,
     "summary": {
       "passed": passed_count,
       "failed": failed_count,
-      "total": len(testcases)
+      "total": len(testcases),
+      "total_score": total_score
     }
   }
