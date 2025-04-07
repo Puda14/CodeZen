@@ -126,6 +126,7 @@ services:
     networks:
       - app-network
     environment:
+      - JWT_SECRET=your-secret-key
       - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
       - REDIS_URL=redis://redis:6379
 
@@ -138,11 +139,15 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - app-network
     environment:
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-      - MONGO_URL=mongodb://root:password@mongo:27017/?replicaSet=rs0
+      - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-secret-key
 
   code-execute-worker-service:
     build: ./services/code_execute_worker

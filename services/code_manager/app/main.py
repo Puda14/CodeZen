@@ -1,7 +1,11 @@
+import os
 import uuid
 import time
 import logging
-from fastapi import FastAPI, HTTPException  # type: ignore
+from app.services.redis_utils import get_contest_data, is_user_approved, get_problem_testcases
+import json
+from fastapi import FastAPI, HTTPException, Depends  # type: ignore
+from app.auth import jwt_auth_dependency
 from app.models.rabbitmq import RabbitMQClient
 from app.models.request import CodeExecutionRequest, Task
 
@@ -56,15 +60,40 @@ def handle_task(queue_name: str, task_type: str, request: CodeExecutionRequest, 
     raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/execute", status_code=200)
-async def execute_code_endpoint(request: CodeExecutionRequest):
+async def execute_code_endpoint(
+    request: CodeExecutionRequest, 
+    user=Depends(jwt_auth_dependency),
+):
   """
   API endpoint to enqueue a code execution task and return the result.
   """
   return handle_task(queue_name="code_execution_tasks", task_type="execute", request=request, timeout=10)
 
-@app.post("/testcase", status_code=200)
-async def evaluate_testcases_endpoint(request: CodeExecutionRequest):
+@app.post("/evaluate", status_code=200)
+async def evaluate_testcases_endpoint(
+  request: CodeExecutionRequest,
+  user=Depends(jwt_auth_dependency),
+):
   """
   API endpoint to evaluate test cases.
   """
-  return handle_task(queue_name="code_evaluation_tasks", task_type="evaluate", request=request, timeout=30)
+  request.userId = user["_id"]
+
+  if not request.contestId or not request.problemId:
+    raise HTTPException(status_code=400, detail="Missing contestId or problemId.")
+
+  contest = get_contest_data(request.contestId)
+
+  if not is_user_approved(contest, request.userId):
+    raise HTTPException(status_code=403, detail="User is not approved to submit in this contest.")
+
+  testcases = get_problem_testcases(contest, request.problemId)
+
+  request.testcases = testcases
+
+  return handle_task(
+    queue_name="code_evaluation_tasks",
+    task_type="evaluate",
+    request=request,
+    timeout=30
+  )
