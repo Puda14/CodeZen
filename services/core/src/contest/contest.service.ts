@@ -334,67 +334,94 @@ export class ContestService {
     updateContestDto: UpdateContestDto,
     userId: string
   ): Promise<void> {
+    // Step 1: Fetch the contest
     const contest = await this.contestModel.findById(contestId);
-
     if (!contest) {
       throw new NotFoundException(`Contest with ID ${contestId} not found`);
     }
 
+    // Step 2: Authorization
     if (contest.owner.toString() !== userId) {
       throw new ForbiddenException('Only the contest owner can update this contest');
     }
 
-    if (updateContestDto.start_time && updateContestDto.end_time) {
-      if (new Date(updateContestDto.start_time) >= new Date(updateContestDto.end_time)) {
-        throw new BadRequestException('Start time must be before end time');
-      }
-    } else if (updateContestDto.start_time && !updateContestDto.end_time) {
-      if (new Date(updateContestDto.start_time) >= contest.end_time) {
-        throw new BadRequestException('Start time must be before end time');
-      }
-    } else if (!updateContestDto.start_time && updateContestDto.end_time) {
-      if (contest.start_time >= new Date(updateContestDto.end_time)) {
-        throw new BadRequestException('Start time must be before end time');
-      }
+    // Step 3: Validate time logic
+    const now = new Date();
+    const newStartTime = updateContestDto.start_time ? new Date(updateContestDto.start_time) : contest.start_time;
+    const newEndTime = updateContestDto.end_time ? new Date(updateContestDto.end_time) : contest.end_time;
+
+    if (newStartTime >= newEndTime) {
+      throw new BadRequestException('Start time must be before end time');
     }
 
+    // Step 4: Update contest in MongoDB
     await this.contestModel.findByIdAndUpdate(contestId, { $set: updateContestDto });
 
+    // Step 5: Refetch updated contest
     const updatedContest = await this.contestModel.findById(contestId);
     if (!updatedContest) {
       throw new NotFoundException(`Contest with ID ${contestId} not found after update`);
     }
 
+    // Step 6: If contest is ONGOING and start_time was changed to a future time => revert to UPCOMING
+    if (
+      updateContestDto.start_time &&
+      updatedContest.status === ContestStatus.ONGOING &&
+      newStartTime > now
+    ) {
+      console.log(`♻️ Reverting contest ${contestId} to UPCOMING due to new start_time in the future`);
+
+      await this.contestModel.findByIdAndUpdate(contestId, { status: ContestStatus.UPCOMING });
+      await this.contestCacheService.deleteCachedContest(contestId);
+
+      const jobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
+      await Promise.all(jobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
+      await this.contestQueueService.scheduleContest(updatedContest);
+
+      console.log(`✅ Contest ${contestId} reverted to UPCOMING and rescheduled`);
+      return;
+    }
+
+    // Step 7: Reschedule start job if start_time changed and contest is UPCOMING
     if (updateContestDto.start_time && updatedContest.status === ContestStatus.UPCOMING) {
-      console.log(`♻️ Rescheduling jobs for contest ${contestId} (start_time changed)`);
+      console.log(`♻️ Rescheduling start job for contest ${contestId} (start_time changed)`);
 
       const jobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
       await Promise.all(jobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
 
       await this.contestQueueService.scheduleContest(updatedContest);
-      console.log(`✅ Successfully rescheduled contest ${contestId}`);
+      console.log(`✅ Successfully rescheduled start job for contest ${contestId}`);
     }
 
+    // Step 8: Handle end_time change for ONGOING contest
     if (updateContestDto.end_time && updatedContest.status === ContestStatus.ONGOING) {
       console.log(`♻️ Rescheduling finish job for contest ${contestId} (end_time changed)`);
 
       const finishJobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
       await Promise.all(finishJobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
 
-      const now = new Date();
-      const newEndTime = new Date(updatedContest.end_time);
-      const delay = newEndTime.getTime() - now.getTime();
-
-      if (delay > 0) {
+      if (newEndTime > now) {
+        const delay = newEndTime.getTime() - now.getTime();
         console.log(`📅 Scheduling new finish job for contest ${contestId} in ${delay} ms`);
         await this.contestQueueService.scheduleFinishContest(updatedContest);
+
+        console.log(`🔄 Updating Redis cache for ongoing contest ${contestId}`);
+        await this.updateContestCache(contestId);
+        console.log(`✅ Cache updated for contest ${contestId}`);
       } else {
-        console.warn(`⚠️ Contest ${contestId} end_time already passed, skipping rescheduling.`);
+        console.warn(`⚠️ New end_time is in the past. Finishing contest ${contestId}`);
+        await this.contestModel.findByIdAndUpdate(contestId, { status: ContestStatus.FINISHED });
+        await this.contestCacheService.deleteCachedContest(contestId);
+        console.log(`🗑️ Deleted cache and marked contest ${contestId} as FINISHED`);
+        return;
       }
     }
 
-    if (updatedContest.status === ContestStatus.ONGOING) {
+    // Step 9: Refresh cache if contest is still ONGOING and no end_time update
+    if (updatedContest.status === ContestStatus.ONGOING && !updateContestDto.end_time) {
+      console.log(`🔄 Refreshing Redis cache for ongoing contest ${contestId}`);
       await this.updateContestCache(contestId);
+      console.log(`✅ Cache refreshed for contest ${contestId}`);
     }
   }
 
