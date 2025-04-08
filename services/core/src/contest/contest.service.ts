@@ -16,6 +16,7 @@ import { UpdateTestcaseDto } from '../testcase/dto/update-testcase.dto';
 import { ContestStatus } from '../common/enums/contest.enum';
 import { ContestQueueService } from './queue/contest.queue.service';
 import { ContestCacheService } from './cache/contest.cache.service';
+import { LeaderboardService } from '../leaderboard/leaderboard.service';
 
 @Injectable()
 export class ContestService {
@@ -26,6 +27,7 @@ export class ContestService {
     private userService: UserService,
     private contestQueueService: ContestQueueService,
     private readonly contestCacheService: ContestCacheService,
+    private readonly leaderboardService: LeaderboardService,
     @InjectConnection() private readonly connection: Connection,
   ) { }
 
@@ -377,7 +379,7 @@ export class ContestService {
       const jobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
       await Promise.all(jobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
       await this.contestQueueService.scheduleContest(updatedContest);
-
+      await this.leaderboardService.deleteIfExist(contestId);
       console.log(`✅ Contest ${contestId} reverted to UPCOMING and rescheduled`);
       return;
     }
@@ -412,6 +414,8 @@ export class ContestService {
         console.warn(`⚠️ New end_time is in the past. Finishing contest ${contestId}`);
         await this.contestModel.findByIdAndUpdate(contestId, { status: ContestStatus.FINISHED });
         await this.contestCacheService.deleteCachedContest(contestId);
+        await this.leaderboardService.saveToMongo(contestId);
+        await this.leaderboardService.deleteIfExist(contestId);
         console.log(`🗑️ Deleted cache and marked contest ${contestId} as FINISHED`);
         return;
       }

@@ -24,6 +24,7 @@ import { createKeyv } from '@keyv/redis';
 import { CacheableMemory } from 'cacheable';
 
 import { Logger } from '@nestjs/common';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -71,6 +72,8 @@ import { Logger } from '@nestjs/common';
         };
       },
     }),
+
+    LeaderboardModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, RedisHealthIndicator],

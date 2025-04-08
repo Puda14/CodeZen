@@ -14,6 +14,7 @@ import { ContestQueueService } from './queue/contest.queue.service';
 import { ContestProcessor } from './queue/contest.processor';
 
 import { ContestCacheService } from './cache/contest.cache.service';
+import { LeaderboardModule } from '../leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ContestCacheService } from './cache/contest.cache.service';
     ProblemModule,
     TestcaseModule,
     UserModule,
+    LeaderboardModule,
     BullModule.registerQueue({
       name: 'contestQueue',
       connection: {

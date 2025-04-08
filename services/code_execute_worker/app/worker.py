@@ -4,6 +4,7 @@ from app.models.rabbitmq import RabbitMQClient
 from app.models.request import Task, CodeExecutionRequest
 from app.services.code_executor import execute_code
 from app.services.code_evaluate import evaluate_code
+import requests
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,6 +18,21 @@ class Worker:
     self.response_queue = "response_queue"
     self.task_queues = ["code_execution_tasks", "code_evaluation_tasks"]
 
+  def update_leaderboard(self, contest_id, problem_id, user_id, score):
+    try:
+      url = "http://nginx/api/core/leaderboard/update"
+      payload = {
+        "contestId": contest_id,
+        "problemId": problem_id,
+        "userId": user_id,
+        "score": score
+      }
+      response = requests.post(url, json=payload, timeout=5)
+      response.raise_for_status()
+      logging.info(f"✅ Leaderboard updated for user {user_id} in contest {contest_id}")
+    except Exception as e:
+      logging.error(f"❌ Failed to update leaderboard: {e}")
+      
   async def process_task(self, task):
     """
     Process a single task received from RabbitMQ.
@@ -44,6 +60,16 @@ class Worker:
         logging.info(f"Processing code evaluation task: {data}")
         result = await evaluate_code(data)
         response["result"] = result
+
+        try:
+          self.update_leaderboard(
+            contest_id=data.contestId,
+            problem_id=data.problemId,
+            user_id=data.userId,
+            score=result["summary"]["total_score"]
+          )
+        except Exception as e:
+          logging.warning(f"Leaderboard update skipped: {e}")
 
       else:
         logging.warning(f"Unknown task type: {task_type}")

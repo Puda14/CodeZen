@@ -6,6 +6,7 @@ import { ContestStatus } from '../../common/enums/contest.enum';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ContestCacheService } from '../cache/contest.cache.service';
+import { LeaderboardService } from '../../leaderboard/leaderboard.service';
 
 @Processor('contestQueue')
 export class ContestProcessor extends WorkerHost {
@@ -14,7 +15,8 @@ export class ContestProcessor extends WorkerHost {
   constructor(
     private readonly contestService: ContestService,
     private readonly contestCacheService: ContestCacheService,
-    @InjectQueue('contestQueue') private readonly contestQueue: Queue
+    @InjectQueue('contestQueue') private readonly contestQueue: Queue,
+    private readonly leaderboardService: LeaderboardService,
   ) {
     super();
     this.logger.log('✅ ContestProcessor initialized.');
@@ -45,6 +47,24 @@ export class ContestProcessor extends WorkerHost {
 
             await this.contestCacheService.setCachedContest(contestId, formattedContest, 6000000);
 
+            const approvedUsers = formattedContest.registrations
+              .filter(r => r.status === 'approved')
+              .map(r => ({
+                _id: r.user._id.toString(),
+                username: r.user.username,
+                email: r.user.email
+              }));
+
+            const problemIds = formattedContest.problems.map((p) => p._id.toString());
+
+            await this.leaderboardService.deleteIfExist(contestId);
+            await this.leaderboardService.initLeaderboardFromContest(
+              updatedContest._id.toString(),
+              approvedUsers,
+              problemIds
+            );
+
+            // Schedule the contest to finish
             const now = new Date();
             const endTime = new Date(updatedContest.end_time);
             const delay = endTime.getTime() - now.getTime();
@@ -64,6 +84,7 @@ export class ContestProcessor extends WorkerHost {
           if (newStatus === ContestStatus.FINISHED) {
             this.logger.log(`🗑️ Removing contest ${contestId} from cache`);
             await this.contestCacheService.deleteCachedContest(contestId);
+            await this.leaderboardService.saveToMongo(contestId);
           }
 
         } catch (error) {
