@@ -40,8 +40,15 @@ export class LeaderboardService {
       _id: string,
       username: string,
       email: string
-    }[]
+    }[],
+    problemIds: string[]
   ): Promise<void> {
+    const problemList = problemIds.map((pid, index) => ({
+      p: `P${(index + 1).toString().padStart(2, '0')}`,
+      problemId: pid,
+      score: 0
+    }));
+
     const data = {
       contestId,
       users: approvedUsers.map(user => ({
@@ -51,7 +58,7 @@ export class LeaderboardService {
           email: user.email
         },
         totalScore: 0,
-        problems: []
+        problems: [...problemList]
       }))
     };
 

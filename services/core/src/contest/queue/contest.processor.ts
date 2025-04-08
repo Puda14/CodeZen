@@ -55,10 +55,13 @@ export class ContestProcessor extends WorkerHost {
                 email: r.user.email
               }));
 
+            const problemIds = formattedContest.problems.map((p) => p._id.toString());
+
             await this.leaderboardService.deleteIfExist(contestId);
             await this.leaderboardService.initLeaderboardFromContest(
               updatedContest._id.toString(),
-              approvedUsers
+              approvedUsers,
+              problemIds
             );
 
             // Schedule the contest to finish

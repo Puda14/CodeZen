@@ -7,9 +7,6 @@ from app.services.docker_handler import run_code_in_docker
 from app.processor_config import PROCESSOR_CONFIG
 from app.exceptions import CodeExecutionException, UnsupportedLanguageException
 
-# TESTCASE_PATH = os.path.join(os.path.dirname(__file__), "testcases.json")
-
-
 async def evaluate_code(request):
   if request.processor not in PROCESSOR_CONFIG:
     raise UnsupportedLanguageException(request.processor)
