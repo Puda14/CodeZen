@@ -1,18 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { FiSun, FiMoon } from "react-icons/fi";
-import { useTheme } from "../../context/ThemeContext";
-import { metadata } from "@/data/metadata";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FiSun, FiMoon, FiUser } from "react-icons/fi";
+import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/context/AuthContext";
+import { metadata } from "@/data/metadata";
 
 const Header = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
   const { theme, toggleTheme } = useTheme();
+  const { isLoggedIn, logout } = useAuth();
+  const router = useRouter();
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  const handleLogout = () => {
+    logout();
+    router.push("/");
   };
 
   return (
@@ -21,85 +27,129 @@ const Header = () => {
       <meta name="description" content={metadata.description} />
       <link rel="icon" href={metadata.logo} type="image/x-icon" />
 
-      <nav className="bg-white border-gray-200 px-4 lg:px-6 py-2.5 dark:bg-gray-800">
-        <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl">
+      <nav className="bg-white dark:bg-gray-800 border-gray-200 px-4 lg:px-6 py-2.5">
+        <div className="flex justify-between items-center mx-auto max-w-screen-xl">
+          {/* Logo */}
           <Link href="/" className="flex items-center">
-            <img src={metadata.logo} className="mr-3 h-6 sm:h-9" alt="Logo" />
-            <span className="self-center text-xl font-semibold whitespace-nowrap dark:text-white">
+            <img src={metadata.logo} className="h-6 sm:h-9 mr-3" alt="Logo" />
+            <span className="text-xl font-semibold dark:text-white">
               {metadata.name}
             </span>
           </Link>
-          <div className="flex items-center lg:order-2">
+
+          {/* Desktop menu*/}
+          <div className="hidden lg:flex gap-6 items-center font-medium">
+            <Link
+              href="/"
+              className="text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-white"
+            >
+              Home
+            </Link>
+            <Link
+              href="/contests"
+              className="text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-white"
+            >
+              Contests
+            </Link>
+          </div>
+
+          {/* Right-side buttons */}
+          <div className="flex items-center gap-2 lg:order-2">
+            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
-              className="mr-2 sm:mr-4 p-2 sm:p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
             >
               {theme === "dark" ? (
-                <FiSun className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
+                <FiSun className="w-5 h-5 text-yellow-500" />
               ) : (
-                <FiMoon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+                <FiMoon className="w-5 h-5 text-gray-700" />
               )}
             </button>
-            <Link
-              href="/login"
-              className="hidden sm:block text-white bg-blue-600 dark:text-white dark:bg-blue-600 hover:bg-blue-700 focus:bg-blue-800 focus:ring-gray-300 font-medium rounded-lg text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2 mr-2 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-800"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/register"
-              className="hidden sm:block text-gray-800 border dark:text-white hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2 mr-2 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-80"
-            >
-              Get started
-            </Link>
 
+            {/* Auth */}
+            {isLoggedIn ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserDropdownOpen((prev) => !prev)}
+                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                >
+                  <FiUser className="text-xl text-gray-800 dark:text-gray-200" />
+                </button>
+                {isUserDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50">
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="hidden sm:block text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-gray-700 font-medium rounded-lg text-sm px-4 py-2 focus:outline-none"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className="hidden sm:block border text-gray-800 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-700 font-medium rounded-lg text-sm px-4 py-2 focus:outline-none"
+                >
+                  Get started
+                </Link>
+              </>
+            )}
+
+            {/* Mobile menu button */}
             <button
-              onClick={toggleMenu}
-              type="button"
-              className="inline-flex items-center p-2 ml-1 text-sm text-gray-500 rounded-lg lg:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
-              aria-controls="mobile-menu-2"
-              aria-expanded={isMenuOpen}
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              className="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg lg:hidden hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
             >
-              <span className="sr-only">Open main menu</span>
+              <span className="sr-only">Open menu</span>
               <svg
-                className={`${isMenuOpen ? "hidden" : "block"} w-6 h-6`}
+                className={`w-6 h-6 ${isMobileMenuOpen ? "hidden" : "block"}`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
               >
                 <path
                   fillRule="evenodd"
-                  d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                  d="M3 5h14a1 1 0 010 2H3a1 1 0 110-2zm0 5h14a1 1 0 010 2H3a1 1 0 110-2zm0 5h14a1 1 0 010 2H3a1 1 0 110-2z"
                   clipRule="evenodd"
-                ></path>
+                />
               </svg>
               <svg
-                className={`${isMenuOpen ? "block" : "hidden"} w-6 h-6`}
+                className={`w-6 h-6 ${isMobileMenuOpen ? "block" : "hidden"}`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
               >
                 <path
                   fillRule="evenodd"
                   d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
                   clipRule="evenodd"
-                ></path>
+                />
               </svg>
             </button>
           </div>
+        </div>
 
-          <div
-            className={`${
-              isMenuOpen ? "block" : "hidden"
-            } justify-between items-center w-full lg:flex lg:w-auto lg:order-1`}
-            id="mobile-menu-2"
-          >
-            <ul className="flex flex-col mt-4 font-medium lg:flex-row lg:space-x-8 lg:mt-0">
+        {/* Mobile menu */}
+        {isMobileMenuOpen && (
+          <div className="lg:hidden mt-4 space-y-4">
+            <ul className="flex flex-col space-y-2 font-medium">
               <li>
                 <Link
                   href="/"
-                  className="block py-2 pr-4 pl-3 text-blue-700 rounded bg-primary-700 lg:bg-transparent lg:text-primary-700 lg:p-0 dark:text-white"
-                  aria-current="page"
+                  className="block px-2 py-1 text-blue-700 dark:text-white"
                 >
                   Home
                 </Link>
@@ -107,44 +157,31 @@ const Header = () => {
               <li>
                 <Link
                   href="/contests"
-                  className="block py-2 pr-4 pl-3 text-gray-700 border-b border-gray-100 hover:bg-gray-50 lg:hover:bg-transparent lg:border-0 lg:hover:text-primary-700 lg:p-0 dark:text-gray-400 lg:dark:hover:text-white dark:hover:bg-gray-700 dark:hover:text-white lg:dark:hover:bg-transparent dark:border-gray-700"
+                  className="block px-2 py-1 text-gray-700 dark:text-gray-300"
                 >
                   Contests
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/team"
-                  className="block py-2 pr-4 pl-3 text-gray-700 border-b border-gray-100 hover:bg-gray-50 lg:hover:bg-transparent lg:border-0 lg:hover:text-primary-700 lg:p-0 dark:text-gray-400 lg:dark:hover:text-white dark:hover:bg-gray-700 dark:hover:text-white lg:dark:hover:bg-transparent dark:border-gray-700"
-                >
-                  Team
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="block py-2 pr-4 pl-3 text-gray-700 border-b border-gray-100 hover:bg-gray-50 lg:hover:bg-transparent lg:border-0 lg:hover:text-primary-700 lg:p-0 dark:text-gray-400 lg:dark:hover:text-white dark:hover:bg-gray-700 dark:hover:text-white lg:dark:hover:bg-transparent dark:border-gray-700"
-                >
-                  Contact
-                </Link>
-              </li>
             </ul>
-            <div className="mt-4 space-y-2 sm:flex sm:space-y-0 sm:space-x-2 lg:hidden">
-              <Link
-                href="/login"
-                className="block w-full text-center text-white bg-blue-600 dark:text-white dark:bg-blue-600 hover:bg-blue-700 focus:bg-blue-800 focus:ring-gray-300 font-medium rounded-lg text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-800"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/register"
-                className="block w-full text-center text-gray-800 border dark:text-white hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-80"
-              >
-                Get started
-              </Link>
-            </div>
+
+            {!isLoggedIn && (
+              <div className="flex flex-col gap-2">
+                <Link
+                  href="/login"
+                  className="block text-center text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-gray-700 font-medium rounded-lg text-sm px-4 py-2"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className="block text-center border text-gray-800 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-700 font-medium rounded-lg text-sm px-4 py-2"
+                >
+                  Get started
+                </Link>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </nav>
     </header>
   );
