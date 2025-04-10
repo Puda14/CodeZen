@@ -3,6 +3,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { ToastProvider } from "../context/ToastProvider";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
+import { AuthProvider } from "../context/AuthContext";
 import Header from "../components/Layout/Header";
 import "./globals.css";
 
@@ -18,9 +19,11 @@ const geistMono = Geist_Mono({
 
 export default function RootLayout({ children }) {
   return (
-    <ThemeProvider>
-      <ThemeWrapper>{children}</ThemeWrapper>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <ThemeWrapper>{children}</ThemeWrapper>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 
