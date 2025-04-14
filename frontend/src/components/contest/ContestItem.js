@@ -3,12 +3,19 @@
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { FiClock, FiUser, FiLock, FiGlobe } from "react-icons/fi";
+import { getUserIdFromToken } from "@/utils/auth/getUserIdFromToken";
 
 const ContestItem = ({ contest }) => {
   const router = useRouter();
 
   const handleClick = () => {
-    router.push(`/contests/${contest._id}`);
+    const currentUserId = getUserIdFromToken();
+
+    if (contest.owner._id === currentUserId) {
+      router.push(`/contests/owned/${contest._id}`);
+    } else {
+      router.push(`/contests/${contest._id}`);
+    }
   };
 
   const isPublic = contest.isPublic;

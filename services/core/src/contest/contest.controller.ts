@@ -219,6 +219,16 @@ export class ContestController {
     return this.contestService.getContestBasicInfo(contestId);
   }
 
+  @Get(":contestId/registration-status")
+  @UseGuards(JwtAuthGuard)
+  async getContestRegistrationStatus(
+    @Param("contestId") contestId: string,
+    @Request() req: any
+  ): Promise<{ status: string }> {
+    const userId = req.user.userId;
+    return this.contestService.getContestRegistrationStatus(contestId, userId);
+  }
+
   @Get(':contestId/problems/:problemId/contestant')
   @UseGuards(JwtAuthGuard, ContestStatusGuard)
   @ContestPhaseRequired(ContestPhase.DURING_CONTEST)
@@ -240,5 +250,15 @@ export class ContestController {
   ): Promise<Problem> {
     const userId = req.user.userId;
     return this.contestService.getProblemForOwner(contestId, problemId, userId);
+  }
+
+  @Get(':contestId/owner')
+  @UseGuards(JwtAuthGuard)
+  async getContestForOwner(
+    @Param('contestId') contestId: string,
+    @Request() req: any
+  ): Promise<Contest> {
+    const userId = req.user.userId;
+    return this.contestService.getContestForOwner(contestId, userId);
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ContestItem from "@/components/contest/ContestItem";
 import api from "@/utils/coreApi";
+import { useToast } from "@/context/ToastProvider";
 import { FiChevronLeft, FiChevronRight, FiSearch } from "react-icons/fi";
 
 const TABS = ["Public", "Registered", "Owned"];
@@ -15,6 +16,8 @@ const ContestsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const { showToast } = useToast();
+  const [errorMessage, setErrorMessage] = useState("");
 
   const fetchContests = async () => {
     setLoading(true);
@@ -44,8 +47,22 @@ const ContestsPage = () => {
       setPage(1);
     } catch (err) {
       console.error("Failed to fetch contests:", err);
+
       setContests([]);
       setFilteredContests([]);
+
+      const status = err.response?.status;
+      const message =
+        err.response?.data?.message ||
+        "Failed to fetch contests. Please try again.";
+
+      if (status === 401 || status === 403) {
+        setErrorMessage("You need to log in to view this tab.");
+        showToast?.("Please login to continue", "error");
+      } else {
+        setErrorMessage(message);
+        showToast?.(message, "error");
+      }
     } finally {
       setLoading(false);
     }

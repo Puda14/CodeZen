@@ -17,6 +17,7 @@ import { ContestStatus } from '../common/enums/contest.enum';
 import { ContestQueueService } from './queue/contest.queue.service';
 import { ContestCacheService } from './cache/contest.cache.service';
 import { LeaderboardService } from '../leaderboard/leaderboard.service';
+import { UserDocument } from 'src/user/user.schema';
 
 @Injectable()
 export class ContestService {
@@ -254,6 +255,23 @@ export class ContestService {
       isPublic: contest.isPublic,
       leaderboardStatus: contest.leaderboardStatus
     };
+  }
+
+  async getContestRegistrationStatus(contestId: string, userId: string): Promise<{ status: string }> {
+    const contest = await this.contestModel.findById(contestId);
+    if (!contest) {
+      throw new NotFoundException(`Contest with ID ${contestId} not found`);
+    }
+
+    const registration = contest.registrations.find(
+      reg => reg.user.toString() === userId
+    );
+
+    if (!registration) {
+      return { status: 'not_registered' };
+    }
+
+    return { status: registration.status };
   }
 
   async addParticipants(
@@ -827,6 +845,38 @@ export class ContestService {
     } else {
       console.log(`✅ Cache is already up-to-date for contest ${contestId}, skipping update.`);
     }
+  }
+
+  async getContestForOwner(contestId: string, userId: string): Promise<ContestDocument> {
+    const contest = await this.contestModel
+      .findById(contestId)
+      .populate('owner', '_id username email')
+      .populate({
+        path: 'problems',
+        model: 'Problem',
+        populate: {
+          path: 'testcases',
+          model: 'Testcase'
+        }
+      })
+      .populate({
+        path: 'registrations.user',
+        model: 'User',
+        select: '_id username email'
+      })
+      .select('-registrations')
+      .exec();
+
+    if (!contest) {
+      throw new NotFoundException(`Contest with ID ${contestId} not found`);
+    }
+
+    const owner = contest.owner as UserDocument;
+    if (owner._id.toString() !== userId) {
+      throw new ForbiddenException('You are not the owner of this contest');
+    }
+
+    return contest;
   }
 }
 
