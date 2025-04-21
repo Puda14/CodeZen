@@ -18,8 +18,6 @@ const ContestDetailPage = () => {
         const res = await api.get(`/contest/${id}`);
         const data = res.data;
 
-        const currentUserId = getUserIdFromToken();
-
         setContest(data);
       } catch (err) {
         console.error("Failed to fetch contest:", err);

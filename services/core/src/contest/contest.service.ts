@@ -230,7 +230,7 @@ export class ContestService {
     return this.transformContestResponse(contest);
   }
 
-  async getContestBasicInfo(contestId: string): Promise<Partial<ContestDocument>> {
+  async getContestBasicInfo(contestId: string, userId?: string): Promise<Partial<ContestDocument>> {
     const contest = await this.contestModel
       .findById(contestId)
       .populate('owner', '_id username email')
@@ -241,7 +241,13 @@ export class ContestService {
     }
 
     if (!contest.isPublic) {
-      throw new ForbiddenException('This contest is private');
+      const isRegistered = contest.registrations.some(
+        reg => reg.user?.toString() === userId && reg.status === 'approved'
+      );
+
+      if (!isRegistered) {
+        throw new ForbiddenException('This contest is private');
+      }
     }
 
     return {
@@ -375,6 +381,7 @@ export class ContestService {
     }
 
     // Step 4: Update contest in MongoDB
+    delete (updateContestDto as any).status;
     await this.contestModel.findByIdAndUpdate(contestId, { $set: updateContestDto });
 
     // Step 5: Refetch updated contest

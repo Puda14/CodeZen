@@ -4,12 +4,19 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { FiClock, FiUser, FiLock, FiGlobe } from "react-icons/fi";
 import { getUserIdFromToken } from "@/utils/auth/getUserIdFromToken";
+import { useToast } from "@/context/ToastProvider";
 
 const ContestItem = ({ contest }) => {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const handleClick = () => {
     const currentUserId = getUserIdFromToken();
+
+    if (!currentUserId) {
+      showToast("Please login to view contest details", "warning");
+      return;
+    }
 
     if (contest.owner._id === currentUserId) {
       router.push(`/contests/owned/${contest._id}`);

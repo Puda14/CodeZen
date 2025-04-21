@@ -215,8 +215,10 @@ export class ContestController {
   }
 
   @Get(':id')
-  async getContestBasicInfo(@Param('id') contestId: string): Promise<Partial<ContestDocument>> {
-    return this.contestService.getContestBasicInfo(contestId);
+  @UseGuards(JwtAuthGuard)
+  async getContestBasicInfo(@Request() req: any, @Param('id') contestId: string): Promise<Partial<ContestDocument>> {
+    const userId = req.user.userId;
+    return this.contestService.getContestBasicInfo(contestId, userId);
   }
 
   @Get(":contestId/registration-status")

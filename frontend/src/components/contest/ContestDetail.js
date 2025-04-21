@@ -115,30 +115,39 @@ const ContestDetail = ({ contest }) => {
         {contest.description}
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="flex items-center gap-3 text-gray-700 dark:text-gray-300"
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow flex items-start gap-3"
         >
-          <FiClock className="text-blue-500" />
-          <span>
-            <strong>Start:</strong>{" "}
-            {format(new Date(contest.start_time), "PPPpp")}
-          </span>
+          <FiClock className="text-blue-500 mt-1" size={20} />
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">
+              Start Time
+            </p>
+            <p className="text-base text-gray-900 dark:text-white font-semibold">
+              {format(new Date(contest.start_time), "dd/MM/yyyy HH:mm")}
+            </p>
+          </div>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="flex items-center gap-3 text-gray-700 dark:text-gray-300"
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow flex items-start gap-3"
         >
-          <FiClock className="text-red-500" />
-          <span>
-            <strong>End:</strong> {format(new Date(contest.end_time), "PPPpp")}
-          </span>
+          <FiClock className="text-red-500 mt-1" size={20} />
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">
+              End Time
+            </p>
+            <p className="text-base text-gray-900 dark:text-white font-semibold">
+              {format(new Date(contest.end_time), "dd/MM/yyyy HH:mm")}
+            </p>
+          </div>
         </motion.div>
       </div>
 

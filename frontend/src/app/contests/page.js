@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ContestItem from "@/components/contest/ContestItem";
 import api from "@/utils/coreApi";
 import { useToast } from "@/context/ToastProvider";
+import { getUserIdFromToken } from "@/utils/auth/getUserIdFromToken";
 import { FiChevronLeft, FiChevronRight, FiSearch } from "react-icons/fi";
 
 const TABS = ["Public", "Registered", "Owned"];
@@ -34,12 +35,24 @@ const ContestsPage = () => {
         const ongoing = ongoingRes.data || [];
 
         data = [...ongoing, ...upcoming];
-      } else if (activeTab === "Registered") {
-        const res = await api.get("/contest/registered");
-        data = res.data || [];
-      } else if (activeTab === "Owned") {
-        const res = await api.get("/contest/owned");
-        data = res.data || [];
+      } else {
+        const userId = getUserIdFromToken();
+
+        if (!userId) {
+          setErrorMessage("You need to log in to view this tab.");
+          showToast("Please login to continue", "error");
+          setContests([]);
+          setFilteredContests([]);
+          return;
+        }
+
+        if (activeTab === "Registered") {
+          const res = await api.get("/contest/registered");
+          data = res.data || [];
+        } else if (activeTab === "Owned") {
+          const res = await api.get("/contest/owned");
+          data = res.data || [];
+        }
       }
 
       setContests(data);
@@ -58,10 +71,10 @@ const ContestsPage = () => {
 
       if (status === 401 || status === 403) {
         setErrorMessage("You need to log in to view this tab.");
-        showToast?.("Please login to continue", "error");
+        showToast("Please login to continue", "error");
       } else {
         setErrorMessage(message);
-        showToast?.(message, "error");
+        showToast(message, "error");
       }
     } finally {
       setLoading(false);

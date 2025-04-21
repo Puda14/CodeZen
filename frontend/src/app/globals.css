@@ -93,7 +93,7 @@ tr:hover {
 
 /* ======= Form ======= */
 form {
-  @apply space-y-4 p-6 max-w-lg mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md;
+  @apply space-y-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md;
 }
 /* ======= Label ======= */
 label {
