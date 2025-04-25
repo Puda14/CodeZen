@@ -341,7 +341,7 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
               value={content}
               onChange={setContent}
               isDisabled={loading}
-              minHeight="250px"
+              minHeight="500px"
             />
             <div className="mt-4 flex justify-end">
               <button
@@ -363,7 +363,6 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
         )}
       </div>
 
-      {/* User's Confirmation Modal */}
       {showConfirmModal && (
         <ConfirmModal
           message={`Are you sure you want to delete problem "${

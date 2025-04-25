@@ -6,7 +6,8 @@ export enum ContestStatus {
 
 export enum LeaderboardStatus {
   OPEN = 'open',
-  LOCKED = 'locked',
+  FROZEN = 'frozen',
+  CLOSED = 'closed',
 }
 
 export enum RegistrationStatus {

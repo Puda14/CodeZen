@@ -25,7 +25,6 @@ const ProblemList = ({
   const [expandedId, setExpandedId] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Animation variants for the expand/collapse motion div
   const contentVariants = {
     hidden: { opacity: 0, height: 0 },
     visible: {
@@ -142,7 +141,7 @@ const ProblemList = ({
                 onClick={() => toggleExpand(currentProblemId)}
               >
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Problem {index + 1}: {problem.name || "Untitled Problem"}
+                  Problem {index + 1}
                 </h3>
                 <motion.div
                   animate={{ rotate: isExpanded ? 180 : 0 }}

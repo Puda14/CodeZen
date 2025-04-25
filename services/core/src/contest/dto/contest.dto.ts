@@ -20,7 +20,7 @@ export class ContestDto {
 
   @IsNotEmpty()
   @IsEnum(ContestStatus)
-  status: ContestStatus;
+  status?: ContestStatus;
 
   @IsNotEmpty()
   @IsString()
