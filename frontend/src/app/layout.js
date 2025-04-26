@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ToastProvider } from "../context/ToastProvider";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { AuthProvider } from "../context/AuthContext";
+import { ContestProvider } from "@/context/ContestContext";
 import Header from "../components/Layout/Header";
 import "./globals.css";
 
@@ -35,8 +36,10 @@ const ThemeWrapper = ({ children }) => {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased transition-colors duration-300 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100`}
       >
-        <Header />
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <Header />
+          <ContestProvider>{children}</ContestProvider>
+        </ToastProvider>
       </body>
     </html>
   );

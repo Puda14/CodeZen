@@ -19,7 +19,7 @@ async def startup_event():
   """
   rabbitmq.declare_queue("code_execution_tasks")
   rabbitmq.declare_queue("code_evaluation_tasks")
-  rabbitmq.declare_ttl_queue("response_queue", ttl_ms=5000) 
+  rabbitmq.declare_ttl_queue("response_queue", ttl_ms=5000)
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -61,7 +61,7 @@ def handle_task(queue_name: str, task_type: str, request: CodeExecutionRequest, 
 
 @app.post("/execute", status_code=200)
 async def execute_code_endpoint(
-    request: CodeExecutionRequest, 
+    request: CodeExecutionRequest,
     user=Depends(jwt_auth_dependency),
 ):
   """

@@ -764,7 +764,9 @@ export class ContestService {
             } else {
               return {
                 _id: doc._id,
-                score: doc.score
+                score: doc.score,
+                output: doc.output,
+                isPublic: false
               };
             }
           }
