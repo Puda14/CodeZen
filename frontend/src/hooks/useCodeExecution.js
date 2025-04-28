@@ -1,55 +1,113 @@
+// hooks/useCodeExecution.js
 import { useState } from "react";
-import axios from "axios";
+import codeManagerApi from "@/utils/codeManagerApi";
+import { useToast } from "@/context/ToastProvider";
 
-const useCodeExecution = () => {
+const useCodeExecution = (contestId = null, problemId = null) => {
   const [language, setLanguage] = useState("cpp");
   const [code, setCode] = useState("");
   const [inputData, setInputData] = useState("");
   const [output, setOutput] = useState("");
-  const [testcaseResults, setTestcaseResults] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState(null);
+  const [isLoadingRun, setIsLoadingRun] = useState(false);
+  const [isLoadingSubmit, setIsLoadingSubmit] = useState(false);
+  const { showToast } = useToast();
 
-  // Base URL
-  const api = axios.create({
-    baseURL: "http://localhost:8080/api/code-manager",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  // Execute code
   const handleExecute = async () => {
     const payload = { processor: language, code, input_data: inputData };
 
+    setIsLoadingRun(true);
+    setOutput("Executing...");
+    setSubmissionResult(null);
+
     try {
-      const response = await api.post("/execute", payload);
-      setOutput(
-        response.data.result.output ||
-          response.data.result.error_message ||
-          "Execution successful but no result returned."
-      );
+      const response = await codeManagerApi.post("/execute", payload);
+      if (response.data?.result?.status === "success") {
+        setOutput(
+          response.data.result.output ?? "Execution successful, no output."
+        );
+      } else if (response.data?.result?.error_message) {
+        setOutput(`Error:\n${response.data.result.error_message}`);
+      } else {
+        setOutput(
+          `Execution Status: ${response.data?.result?.status || "Unknown"}\n${
+            response.data?.result?.output ||
+            response.data?.result?.error_message ||
+            ""
+          }`
+        );
+      }
     } catch (error) {
-      console.error("Execution failed:", error);
-      setOutput(
+      console.error("Execution request failed:", error);
+      const errorMsg =
         error.response?.data?.message ||
-          "Error executing code. Check your input or server connection."
-      );
+        error.message ||
+        "Error executing code.";
+      setOutput(`Execution Failed:\n${errorMsg}`);
+      showToast(errorMsg, "error");
+    } finally {
+      setIsLoadingRun(false);
     }
   };
 
-  // Check test cases
-  const handleCheckTestcase = async () => {
-    setIsLoading(true);
-    const payload = { processor: language, code, input_data: inputData };
+  const handleContestSubmit = async () => {
+    if (!contestId || !problemId) {
+      showToast("Cannot submit: Contest or Problem ID missing.", "error");
+      return;
+    }
+
+    const payload = {
+      processor: language,
+      code,
+      contestId,
+      problemId,
+    };
+
+    setIsLoadingSubmit(true);
+    setSubmissionResult(null);
+    setOutput("");
+    showToast("Submitting your solution...", "info");
 
     try {
-      const response = await api.post("/testcase", payload);
-      setTestcaseResults(response.data.result);
+      const response = await codeManagerApi.post("/evaluate", payload);
+      if (response.data?.result) {
+        setSubmissionResult(response.data.result);
+        const summary = response.data.result.summary;
+        if (
+          summary &&
+          summary.failed === 0 &&
+          summary.passed === summary.total
+        ) {
+          showToast(
+            `Accepted! Score: ${summary.total_score || "N/A"}`,
+            "success"
+          );
+        } else if (summary) {
+          showToast(
+            `Submission evaluated: ${summary.passed}/${
+              summary.total
+            } passed. Score: ${summary.total_score || "N/A"}`,
+            "warning"
+          );
+        } else {
+          showToast("Submission evaluated.", "info");
+        }
+      } else {
+        throw new Error("Invalid response structure from evaluation API.");
+      }
     } catch (error) {
-      console.error("Testcase check failed:", error);
-      setTestcaseResults(null);
+      console.error("Evaluation request failed:", error);
+      const errorMsg =
+        error.response?.data?.message || error.message || "Submission failed.";
+      setSubmissionResult({
+        status: "Error",
+        message: errorMsg,
+        results: [],
+        summary: { passed: 0, failed: 0, total: 0, total_score: 0 },
+      });
+      showToast(errorMsg, "error");
     } finally {
-      setIsLoading(false);
+      setIsLoadingSubmit(false);
     }
   };
 
@@ -62,9 +120,10 @@ const useCodeExecution = () => {
     setInputData,
     output,
     handleExecute,
-    handleCheckTestcase,
-    testcaseResults,
-    isLoading,
+    submissionResult,
+    handleContestSubmit,
+    isLoadingRun,
+    isLoadingSubmit,
   };
 };
 
