@@ -7,17 +7,18 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const token = Cookies.get("token");
     setIsLoggedIn(!!token);
+    setIsLoading(false);
   }, []);
 
   const login = (token) => {
     Cookies.set("token", token, {
       expires: 1, // 1 day
-      secure: true,
-      sameSite: "Strict",
+      // sameSite: 'Strict'
     });
     setIsLoggedIn(true);
   };
@@ -28,7 +29,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

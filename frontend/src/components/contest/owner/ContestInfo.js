@@ -12,7 +12,7 @@ import {
   FiTrash2,
   FiLoader,
 } from "react-icons/fi";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import api from "@/utils/coreApi";
 import { useToast } from "@/context/ToastProvider";
 import ConfirmModal from "@/components/common/ConfirmModal";
@@ -61,13 +61,32 @@ const ContestInfo = ({ contest }) => {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    title: contest.title,
-    description: contest.description,
-    start_time: contest.start_time,
-    end_time: contest.end_time,
-    isPublic: contest.isPublic,
-    leaderboardStatus: contest.leaderboardStatus,
+    title: contest.title || "",
+    description: contest.description || "",
+    start_time: contest.start_time || null,
+    end_time: contest.end_time || null,
+    isPublic: contest.isPublic ?? true,
+    leaderboardStatus: contest.leaderboardStatus || "closed",
   });
+
+  useEffect(() => {
+    setFormData({
+      title: contest.title || "",
+      description: contest.description || "",
+      start_time: contest.start_time || null,
+      end_time: contest.end_time || null,
+      isPublic: contest.isPublic ?? true,
+      leaderboardStatus: contest.leaderboardStatus || "closed",
+    });
+    setOriginalData({
+      title: contest.title || "",
+      description: contest.description || "",
+      start_time: contest.start_time || null,
+      end_time: contest.end_time || null,
+      isPublic: contest.isPublic ?? true,
+      leaderboardStatus: contest.leaderboardStatus || "closed",
+    });
+  }, [contest]);
 
   const [originalData, setOriginalData] = useState({ ...formData });
   const [editing, setEditing] = useState(false);
@@ -76,19 +95,26 @@ const ContestInfo = ({ contest }) => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    if (name === "leaderboardStatus") return;
+
     let finalValue;
     if (type === "checkbox") {
       finalValue = checked;
     } else if (type === "datetime-local") {
       finalValue = formatLocalInputStringToUtc(value);
+      if (finalValue === null) {
+        showToast(
+          `Invalid date/time format for ${name.replace("_", " ")}.`,
+          "warning"
+        );
+        return;
+      }
     } else {
       finalValue = value;
     }
-    if (finalValue !== null || type !== "datetime-local") {
-      setFormData((prev) => ({ ...prev, [name]: finalValue }));
-    } else {
-      console.warn(`Invalid date/time entered for ${name}: ${value}`);
-    }
+
+    setFormData((prev) => ({ ...prev, [name]: finalValue }));
   };
 
   const handleSubmit = async () => {
@@ -96,15 +122,42 @@ const ContestInfo = ({ contest }) => {
       showToast("Start time and end time cannot be empty.", "error");
       return;
     }
-    if (new Date(formData.end_time) <= new Date(formData.start_time)) {
+    const startDate = new Date(formData.start_time);
+    const endDate = new Date(formData.end_time);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      showToast("Invalid start or end date.", "error");
+      return;
+    }
+    if (endDate <= startDate) {
       showToast("End time must be after start time.", "error");
       return;
     }
+
     setLoading(true);
     try {
-      await api.patch(`/contest/${contest._id}`, formData);
+      const payload = { ...formData };
+      // *** Remove leaderboardStatus from the payload before sending ***
+      delete payload.leaderboardStatus;
+
+      await api.patch(`/contest/${contest._id}`, payload);
       showToast("Contest info updated successfully", "success");
-      setOriginalData({ ...formData });
+
+      // Fetch the latest contest data after successful update to get the real leaderboardStatus
+      const updatedContestRes = await api.get(`/contest/${contest._id}/owner`);
+      const updatedContestData = updatedContestRes.data;
+
+      // Update both formData and originalData with fresh data from server
+      const freshData = {
+        title: updatedContestData.title || "",
+        description: updatedContestData.description || "",
+        start_time: updatedContestData.start_time || null,
+        end_time: updatedContestData.end_time || null,
+        isPublic: updatedContestData.isPublic ?? true,
+        leaderboardStatus: updatedContestData.leaderboardStatus || "closed", // Use updated status
+      };
+      setFormData(freshData);
+      setOriginalData(freshData);
+
       setEditing(false);
     } catch (err) {
       const msg =
@@ -132,7 +185,7 @@ const ContestInfo = ({ contest }) => {
     try {
       await api.delete(`/contest/${contest._id}`);
       showToast("Contest deleted successfully", "success");
-      router.push("/contests");
+      router.push("/contests/owned");
       router.refresh();
     } catch (err) {
       const msg =
@@ -149,28 +202,33 @@ const ContestInfo = ({ contest }) => {
   };
 
   const statusColor =
-    contest.status === "upcoming"
+    contest?.status === "upcoming"
       ? "text-green-500"
-      : contest.status === "ongoing"
+      : contest?.status === "ongoing"
       ? "text-purple-500"
       : "text-gray-500";
 
+  // Use formData.leaderboardStatus for display color consistency
   const leaderboardColor =
-    formData.leaderboardStatus === "open" ? "text-blue-500" : "text-gray-500";
+    formData.leaderboardStatus === "open"
+      ? "text-blue-500"
+      : formData.leaderboardStatus === "frozen"
+      ? "text-indigo-500"
+      : "text-gray-500";
 
   return (
-    <div>
-      <div className="flex justify-between items-center">
+    <div className="p-4 border rounded-md bg-gray-50 dark:bg-gray-800/50 dark:border-gray-700">
+      <div className="flex justify-between items-center mb-4">
         {editing ? (
           <input
             name="title"
             value={formData.title}
             onChange={handleInputChange}
             disabled={loading}
-            className="text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b focus:outline-none flex-grow mr-4"
+            className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 flex-grow mr-4"
           />
         ) : (
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mr-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mr-4">
             {formData.title}
           </h1>
         )}
@@ -180,7 +238,7 @@ const ContestInfo = ({ contest }) => {
             <button
               onClick={handleCancel}
               disabled={loading}
-              className="text-sm text-gray-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+              className="text-sm text-gray-600 dark:text-gray-400 hover:underline disabled:opacity-50"
             >
               Cancel
             </button>
@@ -193,12 +251,12 @@ const ContestInfo = ({ contest }) => {
                 title="Delete Contest"
               >
                 <FiTrash2 />
-                {!loading && "Delete"}
+                <span className="hidden sm:inline">Delete</span>
               </button>
               <button
                 onClick={() => setEditing(true)}
                 disabled={loading}
-                className="text-sm text-blue-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+                className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 disabled:opacity-50"
               >
                 <FiEdit3 />
                 Edit
@@ -215,11 +273,15 @@ const ContestInfo = ({ contest }) => {
           onChange={handleInputChange}
           rows={3}
           disabled={loading}
-          className="mt-2 w-full bg-transparent text-gray-700 dark:text-gray-300 text-base border-b disabled:opacity-70"
+          className="mt-2 w-full bg-transparent text-gray-700 dark:text-gray-300 text-base border border-gray-300 dark:border-gray-600 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-70"
         />
       ) : (
-        <p className="text-gray-700 dark:text-gray-300 text-lg mt-2">
-          {formData.description}
+        <p className="text-gray-700 dark:text-gray-300 text-lg mt-2 mb-4">
+          {formData.description || (
+            <span className="italic text-gray-500">
+              No description provided.
+            </span>
+          )}
         </p>
       )}
 
@@ -227,7 +289,7 @@ const ContestInfo = ({ contest }) => {
         {["start_time", "end_time"].map((field) => (
           <div
             key={field}
-            className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow flex items-start gap-3"
+            className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow flex items-start gap-3 border border-gray-200 dark:border-gray-600"
           >
             <FiClock
               className={
@@ -236,7 +298,7 @@ const ContestInfo = ({ contest }) => {
               size={20}
             />
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">
                 {field === "start_time" ? "Start Time" : "End Time"}
               </p>
               {editing ? (
@@ -246,7 +308,7 @@ const ContestInfo = ({ contest }) => {
                   value={formatUtcToLocalInputString(formData[field])}
                   onChange={handleInputChange}
                   disabled={loading}
-                  className="mt-1 text-base bg-transparent dark:bg-gray-800 text-gray-900 dark:text-white border-b focus:outline-none disabled:opacity-70"
+                  className="mt-1 text-base bg-transparent dark:bg-gray-800 text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 disabled:opacity-70"
                 />
               ) : (
                 <p className="text-base text-gray-900 dark:text-white font-semibold">
@@ -260,11 +322,11 @@ const ContestInfo = ({ contest }) => {
         ))}
       </div>
 
-      <div className="flex flex-wrap justify-between items-center text-sm mt-6">
+      <div className="flex flex-wrap justify-between items-center text-sm mt-6 gap-y-3">
         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
           <FiUser className="text-purple-500" />
           <span className="font-medium">
-            Created by: {contest.owner?.username || "Unknown"}
+            Created by: {contest?.owner?.username || "Unknown"}
           </span>
         </div>
 
@@ -272,8 +334,11 @@ const ContestInfo = ({ contest }) => {
           <div className="flex items-center gap-2">
             {editing ? (
               <>
-                <FiGlobe className="text-green-500" />
+                <label htmlFor="isPublic" className="sr-only">
+                  Visibility
+                </label>
                 <select
+                  id="isPublic"
                   name="isPublic"
                   value={String(formData.isPublic)}
                   onChange={(e) =>
@@ -283,11 +348,16 @@ const ContestInfo = ({ contest }) => {
                     }))
                   }
                   disabled={loading}
-                  className="bg-transparent dark:bg-gray-800 border-b focus:outline-none disabled:opacity-70"
+                  className="text-sm bg-transparent dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 disabled:opacity-70 py-0.5"
                 >
                   <option value="true">Public</option>
                   <option value="false">Private</option>
                 </select>
+                {formData.isPublic ? (
+                  <FiGlobe className="text-green-500 ml-1" />
+                ) : (
+                  <FiLock className="text-red-500 ml-1" />
+                )}
               </>
             ) : formData.isPublic ? (
               <>
@@ -305,29 +375,16 @@ const ContestInfo = ({ contest }) => {
           </div>
 
           <div
-            className={`font-bold uppercase flex items-center gap-1 ${statusColor}`}
+            className={`font-semibold uppercase flex items-center gap-1 ${statusColor}`}
           >
-            <span>{contest.status}</span>
+            <span>{contest?.status || "UNKNOWN"}</span>
           </div>
 
           <div
-            className={`font-bold uppercase flex items-center gap-1 ${leaderboardColor}`}
+            className={`font-semibold uppercase flex items-center gap-1 ${leaderboardColor}`}
           >
             <FiBarChart2 />
-            {editing ? (
-              <select
-                name="leaderboardStatus"
-                value={formData.leaderboardStatus}
-                onChange={handleInputChange}
-                disabled={loading}
-                className="bg-transparent dark:bg-gray-800 border-b focus:outline-none disabled:opacity-70"
-              >
-                <option value="open">Open</option>
-                <option value="locked">Locked</option>
-              </select>
-            ) : (
-              <span>{formData.leaderboardStatus}</span>
-            )}
+            <span>{formData.leaderboardStatus || "UNKNOWN"}</span>
           </div>
         </div>
       </div>
@@ -337,36 +394,42 @@ const ContestInfo = ({ contest }) => {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow disabled:opacity-50 flex items-center gap-1"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow disabled:opacity-50 flex items-center gap-1.5"
           >
-            {loading ? <FiLoader className="animate-spin" /> : null}
+            {loading ? <FiLoader className="animate-spin h-4 w-4" /> : null}
             {loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8 text-sm text-gray-600 dark:text-gray-300">
-        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow flex items-start gap-3">
-          <FiClock className="text-gray-500 mt-1" size={18} />
+        <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow flex items-start gap-3 border border-gray-200 dark:border-gray-600">
+          <FiClock
+            className="text-gray-400 dark:text-gray-500 mt-0.5"
+            size={18}
+          />
           <div>
-            <p className="font-medium text-gray-500 dark:text-gray-300 mb-1">
+            <p className="font-medium text-gray-500 dark:text-gray-400 mb-1">
               Created At
             </p>
             <p className="text-gray-900 dark:text-white">
-              {contest.createdAt
+              {contest?.createdAt
                 ? format(new Date(contest.createdAt), "dd/MM/yyyy HH:mm")
                 : "N/A"}
             </p>
           </div>
         </div>
-        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow flex items-start gap-3">
-          <FiClock className="text-gray-400 mt-1" size={18} />
+        <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow flex items-start gap-3 border border-gray-200 dark:border-gray-600">
+          <FiClock
+            className="text-gray-400 dark:text-gray-500 mt-0.5"
+            size={18}
+          />
           <div>
-            <p className="font-medium text-gray-500 dark:text-gray-300 mb-1">
+            <p className="font-medium text-gray-500 dark:text-gray-400 mb-1">
               Last Updated
             </p>
             <p className="text-gray-900 dark:text-white">
-              {contest.updatedAt
+              {contest?.updatedAt
                 ? format(new Date(contest.updatedAt), "dd/MM/yyyy HH:mm")
                 : "N/A"}
             </p>
@@ -376,7 +439,9 @@ const ContestInfo = ({ contest }) => {
 
       {showConfirmModal && (
         <ConfirmModal
-          message={`Are you sure you want to delete the contest "${contest.title}"? This action cannot be undone.`}
+          message={`Are you sure you want to delete the contest "${
+            contest?.title || "this contest"
+          }"? This action cannot be undone.`}
           onConfirm={confirmDeletion}
           onCancel={cancelDeletion}
         />

@@ -4,3 +4,9 @@ curl -i -X OPTIONS http://localhost:8080/api/core/contest/registered \
   -H "Origin: http://localhost:3000" \
   -H "Access-Control-Request-Method: GET" \
   -H "Access-Control-Request-Headers: x-access-token"
+
+
+# * `location /socket.io/ { ... }`: Định nghĩa một khối cấu hình riêng cho các yêu cầu bắt đầu bằng `/socket.io/`.
+# * `proxy_pass http://core-service:8001;`: Chuyển tiếp yêu cầu đến `core-service` của bạn (nơi chứa `LeaderboardGateway`). **Hãy chắc chắn đây là đúng service và port.**
+# `proxy_http_version 1.1;`, `proxy_set_header Upgrade $http_upgrade;`, `proxy_set_header Connection "upgrade";`: Đây là các chỉ thị quan trọng để Nginx xử lý đúng yêu cầu nâng cấp kết nối lên WebSocket.
+# `add_header ...`: Thêm các header CORS cần thiết để trình duyệt ở `http://localhost:3000` có thể thực hiện các yêu cầu handshake ban đầu (thường là HTTP polling) đến `/socket.io/`.

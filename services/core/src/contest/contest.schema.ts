@@ -1,7 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { User } from '../user/user.schema';
-import { ContestStatus, LeaderboardStatus, RegistrationStatus } from '../common/enums/contest.enum';
+import {
+  ContestStatus,
+  LeaderboardStatus,
+  RegistrationStatus,
+} from '../common/enums/contest.enum';
 
 export type ContestDocument = Contest & Document & { _id: string };
 
@@ -28,21 +32,28 @@ export class Contest {
   @Prop({ required: true })
   isPublic: boolean;
 
-  @Prop({ required: true, enum: LeaderboardStatus, default: LeaderboardStatus.OPEN })
+  @Prop({
+    required: true,
+    enum: LeaderboardStatus,
+    default: LeaderboardStatus.OPEN,
+  })
   leaderboardStatus: LeaderboardStatus;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Problem' }], default: [] })
   problems: Types.ObjectId[];
 
   @Prop({
-    type: [{
-      user: { type: Types.ObjectId, ref: 'User' },
-      status: { type: String, enum: RegistrationStatus, default: 'pending' }
-    }], default: []
+    type: [
+      {
+        user: { type: Types.ObjectId, ref: 'User' },
+        status: { type: String, enum: RegistrationStatus, default: 'pending' },
+      },
+    ],
+    default: [],
   })
   registrations: {
-    user: Types.ObjectId | User,
-    status: string
+    user: Types.ObjectId | User;
+    status: string;
   }[];
 }
 

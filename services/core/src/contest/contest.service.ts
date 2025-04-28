@@ -1,4 +1,12 @@
-import { Injectable, InternalServerErrorException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  forwardRef,
+  Inject,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Connection, Types } from 'mongoose';
 import { Contest, ContestDocument } from './contest.schema';
@@ -18,6 +26,8 @@ import { ContestQueueService } from './queue/contest.queue.service';
 import { ContestCacheService } from './cache/contest.cache.service';
 import { LeaderboardService } from '../leaderboard/leaderboard.service';
 import { UserDocument } from 'src/user/user.schema';
+import { InitLeaderboardDto } from '../leaderboard/dto/leaderboard.dto';
+import { LeaderboardStatus } from '../common/enums/contest.enum';
 
 @Injectable()
 export class ContestService {
@@ -28,11 +38,15 @@ export class ContestService {
     private userService: UserService,
     private contestQueueService: ContestQueueService,
     private readonly contestCacheService: ContestCacheService,
+    @Inject(forwardRef(() => LeaderboardService))
     private readonly leaderboardService: LeaderboardService,
     @InjectConnection() private readonly connection: Connection,
-  ) { }
+  ) {}
 
-  async createContest(contestDto: ContestDto, userId: string): Promise<{ message: string; contestId?: string }> {
+  async createContest(
+    contestDto: ContestDto,
+    userId: string,
+  ): Promise<{ message: string; contestId?: string }> {
     const session = await this.connection.startSession();
     session.startTransaction();
 
@@ -44,7 +58,10 @@ export class ContestService {
 
       const createdProblems: ProblemDocument[] = [];
       for (const problemDto of contestDto.problems) {
-        const problem = await this.problemService.createProblem(problemDto, session);
+        const problem = await this.problemService.createProblem(
+          problemDto,
+          session,
+        );
         createdProblems.push(problem);
       }
 
@@ -62,13 +79,15 @@ export class ContestService {
       }
 
       const createdContest = await this.contestModel.create(
-        [{
-          ...contestDto,
-          owner: user._id,
-          problems: createdProblems.map(problem => problem._id),
-          status: status
-        }],
-        { session }
+        [
+          {
+            ...contestDto,
+            owner: user._id,
+            problems: createdProblems.map((problem) => problem._id),
+            status: status,
+          },
+        ],
+        { session },
       );
 
       await session.commitTransaction();
@@ -80,14 +99,15 @@ export class ContestService {
 
       return {
         message: 'Contest created successfully',
-        contestId: createdContest[0]._id.toString()
+        contestId: createdContest[0]._id.toString(),
       };
-
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
 
-      throw new InternalServerErrorException(`Failed to create contest: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to create contest: ${error.message}`,
+      );
     }
   }
 
@@ -98,7 +118,9 @@ export class ContestService {
     }
 
     if (contest.owner.toString() !== userId) {
-      throw new ForbiddenException('You do not have permission to delete this contest');
+      throw new ForbiddenException(
+        'You do not have permission to delete this contest',
+      );
     }
 
     if (contest.problems && contest.problems.length > 0) {
@@ -121,15 +143,17 @@ export class ContestService {
     }
 
     const existingRegistration = contest.registrations.find(
-      reg => reg.user.toString() === userId
+      (reg) => reg.user.toString() === userId,
     );
 
     if (existingRegistration) {
-      throw new BadRequestException('You are already registered for this contest');
+      throw new BadRequestException(
+        'You are already registered for this contest',
+      );
     } else {
       contest.registrations.push({
         user: new Types.ObjectId(userId),
-        status: 'pending'
+        status: 'pending',
       });
       await contest.save();
     }
@@ -142,7 +166,7 @@ export class ContestService {
     }
 
     const registrationIndex = contest.registrations.findIndex(
-      reg => reg.user.toString() === userId
+      (reg) => reg.user.toString() === userId,
     );
 
     if (registrationIndex === -1) {
@@ -157,10 +181,12 @@ export class ContestService {
     contestId: string,
     registeredUserId: string,
     status: string,
-    ownerId: string
+    ownerId: string,
   ): Promise<void> {
     if (!['approved', 'rejected'].includes(status)) {
-      throw new BadRequestException('Invalid status. Must be "approved" or "rejected"');
+      throw new BadRequestException(
+        'Invalid status. Must be "approved" or "rejected"',
+      );
     }
 
     const contest = await this.contestModel.findById(contestId);
@@ -169,15 +195,19 @@ export class ContestService {
     }
 
     if (contest.owner.toString() !== ownerId) {
-      throw new ForbiddenException('Only the contest owner can update registration status');
+      throw new ForbiddenException(
+        'Only the contest owner can update registration status',
+      );
     }
 
     const registrationIndex = contest.registrations.findIndex(
-      reg => reg.user.toString() === registeredUserId
+      (reg) => reg.user.toString() === registeredUserId,
     );
 
     if (registrationIndex === -1) {
-      throw new NotFoundException(`Registration for user ${registeredUserId} not found`);
+      throw new NotFoundException(
+        `Registration for user ${registeredUserId} not found`,
+      );
     }
 
     if (status === 'rejected') {
@@ -189,8 +219,12 @@ export class ContestService {
     await contest.save();
   }
 
-  async getContestRegistrations(contestId: string, userId: string): Promise<any> {
-    const contest = await this.contestModel.findById(contestId)
+  async getContestRegistrations(
+    contestId: string,
+    userId: string,
+  ): Promise<any> {
+    const contest = await this.contestModel
+      .findById(contestId)
       .populate('registrations.user', '_id username email')
       .exec();
 
@@ -199,13 +233,18 @@ export class ContestService {
     }
 
     if (contest.owner.toString() !== userId) {
-      throw new ForbiddenException('Only the contest owner can view registrations');
+      throw new ForbiddenException(
+        'Only the contest owner can view registrations',
+      );
     }
 
     return contest.registrations;
   }
 
-  async getContestDetails(contestId: string, userId: string): Promise<ContestDocument> {
+  async getContestDetails(
+    contestId: string,
+    userId: string,
+  ): Promise<ContestDocument> {
     let contest = await this.contestCacheService.getCachedContest(contestId);
 
     if (!contest) {
@@ -220,17 +259,22 @@ export class ContestService {
     }
 
     const userRegistration = contest.registrations.find(
-      reg => reg.user._id?.toString() === userId && reg.status === 'approved'
+      (reg) => reg.user._id?.toString() === userId && reg.status === 'approved',
     );
 
     if (!userRegistration) {
-      throw new ForbiddenException('You must be an approved participant to view contest details');
+      throw new ForbiddenException(
+        'You must be an approved participant to view contest details',
+      );
     }
 
     return this.transformContestResponse(contest);
   }
 
-  async getContestBasicInfo(contestId: string, userId?: string): Promise<Partial<ContestDocument>> {
+  async getContestBasicInfo(
+    contestId: string,
+    userId?: string,
+  ): Promise<Partial<ContestDocument>> {
     const contest = await this.contestModel
       .findById(contestId)
       .populate('owner', '_id username email')
@@ -242,7 +286,7 @@ export class ContestService {
 
     if (!contest.isPublic) {
       const isRegistered = contest.registrations.some(
-        reg => reg.user?.toString() === userId && reg.status === 'approved'
+        (reg) => reg.user?.toString() === userId && reg.status === 'approved',
       );
 
       if (!isRegistered) {
@@ -259,18 +303,21 @@ export class ContestService {
       owner: contest.owner,
       status: contest.status,
       isPublic: contest.isPublic,
-      leaderboardStatus: contest.leaderboardStatus
+      leaderboardStatus: contest.leaderboardStatus,
     };
   }
 
-  async getContestRegistrationStatus(contestId: string, userId: string): Promise<{ status: string }> {
+  async getContestRegistrationStatus(
+    contestId: string,
+    userId: string,
+  ): Promise<{ status: string }> {
     const contest = await this.contestModel.findById(contestId);
     if (!contest) {
       throw new NotFoundException(`Contest with ID ${contestId} not found`);
     }
 
     const registration = contest.registrations.find(
-      reg => reg.user.toString() === userId
+      (reg) => reg.user.toString() === userId,
     );
 
     if (!registration) {
@@ -283,7 +330,7 @@ export class ContestService {
   async addParticipants(
     contestId: string,
     emails: string[],
-    ownerId: string
+    ownerId: string,
   ): Promise<{ results: ParticipantResult[] }> {
     const contest = await this.contestModel.findById(contestId);
     if (!contest) {
@@ -291,7 +338,9 @@ export class ContestService {
     }
 
     if (contest.owner.toString() !== ownerId) {
-      throw new ForbiddenException('Only the contest owner can add participants');
+      throw new ForbiddenException(
+        'Only the contest owner can add participants',
+      );
     }
 
     const results: ParticipantResult[] = [];
@@ -304,7 +353,7 @@ export class ContestService {
           results.push({
             email,
             status: 'failed',
-            message: 'User not found'
+            message: 'User not found',
           });
           continue;
         }
@@ -313,39 +362,39 @@ export class ContestService {
           results.push({
             email,
             status: 'failed',
-            message: 'Contest owner cannot be registered as a participant'
+            message: 'Contest owner cannot be registered as a participant',
           });
           continue;
         }
 
         const existingRegistration = contest.registrations.find(
-          reg => reg.user.toString() === user._id.toString()
+          (reg) => reg.user.toString() === user._id.toString(),
         );
 
         if (existingRegistration) {
           results.push({
             email,
             status: 'failed',
-            message: 'User already registered'
+            message: 'User already registered',
           });
           continue;
         }
 
         contest.registrations.push({
           user: new Types.ObjectId(user._id),
-          status: 'approved'
+          status: 'approved',
         });
 
         results.push({
           email,
           status: 'success',
-          message: 'User added successfully'
+          message: 'User added successfully',
         });
       } catch (error) {
         results.push({
           email,
           status: 'failed',
-          message: error.message
+          message: error.message,
         });
       }
     }
@@ -358,7 +407,7 @@ export class ContestService {
   async updateContest(
     contestId: string,
     updateContestDto: UpdateContestDto,
-    userId: string
+    userId: string,
   ): Promise<void> {
     // Step 1: Fetch the contest
     const contest = await this.contestModel.findById(contestId);
@@ -368,13 +417,19 @@ export class ContestService {
 
     // Step 2: Authorization
     if (contest.owner.toString() !== userId) {
-      throw new ForbiddenException('Only the contest owner can update this contest');
+      throw new ForbiddenException(
+        'Only the contest owner can update this contest',
+      );
     }
 
     // Step 3: Validate time logic
     const now = new Date();
-    const newStartTime = updateContestDto.start_time ? new Date(updateContestDto.start_time) : contest.start_time;
-    const newEndTime = updateContestDto.end_time ? new Date(updateContestDto.end_time) : contest.end_time;
+    const newStartTime = updateContestDto.start_time
+      ? new Date(updateContestDto.start_time)
+      : contest.start_time;
+    const newEndTime = updateContestDto.end_time
+      ? new Date(updateContestDto.end_time)
+      : contest.end_time;
 
     if (newStartTime >= newEndTime) {
       throw new BadRequestException('Start time must be before end time');
@@ -382,72 +437,127 @@ export class ContestService {
 
     // Step 4: Update contest in MongoDB
     delete (updateContestDto as any).status;
-    await this.contestModel.findByIdAndUpdate(contestId, { $set: updateContestDto });
+    await this.contestModel.findByIdAndUpdate(contestId, {
+      $set: updateContestDto,
+    });
 
     // Step 5: Refetch updated contest
     const updatedContest = await this.contestModel.findById(contestId);
     if (!updatedContest) {
-      throw new NotFoundException(`Contest with ID ${contestId} not found after update`);
+      throw new NotFoundException(
+        `Contest with ID ${contestId} not found after update`,
+      );
     }
 
-    // Step 6: If contest is ONGOING and start_time was changed to a future time => revert to UPCOMING
+    // Step 6: If contest is ONGOING or FINISHED and start_time was changed to a future time => revert to UPCOMING
     if (
       updateContestDto.start_time &&
-      updatedContest.status === ContestStatus.ONGOING &&
+      (updatedContest.status === ContestStatus.ONGOING ||
+        updatedContest.status === ContestStatus.FINISHED) &&
       newStartTime > now
     ) {
-      console.log(`♻️ Reverting contest ${contestId} to UPCOMING due to new start_time in the future`);
+      console.log(
+        `♻️ Reverting contest ${contestId} to UPCOMING due to new start_time in the future`,
+      );
 
-      await this.contestModel.findByIdAndUpdate(contestId, { status: ContestStatus.UPCOMING });
+      await this.contestModel.findByIdAndUpdate(contestId, {
+        status: ContestStatus.UPCOMING,
+      });
       await this.contestCacheService.deleteCachedContest(contestId);
 
-      const jobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
-      await Promise.all(jobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
+      const jobs =
+        await this.contestQueueService.getDelayedJobsForContest(contestId);
+      await Promise.all(
+        jobs.map((job) =>
+          job.id
+            ? this.contestQueueService.removeJobById(job.id)
+            : Promise.resolve(),
+        ),
+      );
       await this.contestQueueService.scheduleContest(updatedContest);
       await this.leaderboardService.deleteIfExist(contestId);
-      console.log(`✅ Contest ${contestId} reverted to UPCOMING and rescheduled`);
+      console.log(
+        `✅ Contest ${contestId} reverted to UPCOMING and rescheduled`,
+      );
       return;
     }
 
     // Step 7: Reschedule start job if start_time changed and contest is UPCOMING
-    if (updateContestDto.start_time && updatedContest.status === ContestStatus.UPCOMING) {
-      console.log(`♻️ Rescheduling start job for contest ${contestId} (start_time changed)`);
+    if (
+      updateContestDto.start_time &&
+      updatedContest.status === ContestStatus.UPCOMING
+    ) {
+      console.log(
+        `♻️ Rescheduling start job for contest ${contestId} (start_time changed)`,
+      );
 
-      const jobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
-      await Promise.all(jobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
+      const jobs =
+        await this.contestQueueService.getDelayedJobsForContest(contestId);
+      await Promise.all(
+        jobs.map((job) =>
+          job.id
+            ? this.contestQueueService.removeJobById(job.id)
+            : Promise.resolve(),
+        ),
+      );
 
       await this.contestQueueService.scheduleContest(updatedContest);
-      console.log(`✅ Successfully rescheduled start job for contest ${contestId}`);
+      console.log(
+        `✅ Successfully rescheduled start job for contest ${contestId}`,
+      );
     }
 
     // Step 8: Handle end_time change for ONGOING contest
-    if (updateContestDto.end_time && updatedContest.status === ContestStatus.ONGOING) {
-      console.log(`♻️ Rescheduling finish job for contest ${contestId} (end_time changed)`);
+    if (
+      updateContestDto.end_time &&
+      updatedContest.status === ContestStatus.ONGOING
+    ) {
+      console.log(
+        `♻️ Rescheduling finish job for contest ${contestId} (end_time changed)`,
+      );
 
-      const finishJobs = await this.contestQueueService.getDelayedJobsForContest(contestId);
-      await Promise.all(finishJobs.map(job => (job.id ? this.contestQueueService.removeJobById(job.id) : Promise.resolve())));
+      const finishJobs =
+        await this.contestQueueService.getDelayedJobsForContest(contestId);
+      await Promise.all(
+        finishJobs.map((job) =>
+          job.id
+            ? this.contestQueueService.removeJobById(job.id)
+            : Promise.resolve(),
+        ),
+      );
 
       if (newEndTime > now) {
         const delay = newEndTime.getTime() - now.getTime();
-        console.log(`📅 Scheduling new finish job for contest ${contestId} in ${delay} ms`);
+        console.log(
+          `📅 Scheduling new finish job for contest ${contestId} in ${delay} ms`,
+        );
         await this.contestQueueService.scheduleFinishContest(updatedContest);
 
         console.log(`🔄 Updating Redis cache for ongoing contest ${contestId}`);
         await this.updateContestCache(contestId);
         console.log(`✅ Cache updated for contest ${contestId}`);
       } else {
-        console.warn(`⚠️ New end_time is in the past. Finishing contest ${contestId}`);
-        await this.contestModel.findByIdAndUpdate(contestId, { status: ContestStatus.FINISHED });
+        console.warn(
+          `⚠️ New end_time is in the past. Finishing contest ${contestId}`,
+        );
+        await this.contestModel.findByIdAndUpdate(contestId, {
+          status: ContestStatus.FINISHED,
+        });
         await this.contestCacheService.deleteCachedContest(contestId);
         await this.leaderboardService.saveToMongo(contestId);
         await this.leaderboardService.deleteIfExist(contestId);
-        console.log(`🗑️ Deleted cache and marked contest ${contestId} as FINISHED`);
+        console.log(
+          `🗑️ Deleted cache and marked contest ${contestId} as FINISHED`,
+        );
         return;
       }
     }
 
     // Step 9: Refresh cache if contest is still ONGOING and no end_time update
-    if (updatedContest.status === ContestStatus.ONGOING && !updateContestDto.end_time) {
+    if (
+      updatedContest.status === ContestStatus.ONGOING &&
+      !updateContestDto.end_time
+    ) {
       console.log(`🔄 Refreshing Redis cache for ongoing contest ${contestId}`);
       await this.updateContestCache(contestId);
       console.log(`✅ Cache refreshed for contest ${contestId}`);
@@ -457,7 +567,7 @@ export class ContestService {
   async addProblemToContest(
     contestId: string,
     problemDto: ProblemDto,
-    userId: string
+    userId: string,
   ): Promise<{ message: string; problemId: string }> {
     const session = await this.connection.startSession();
     session.startTransaction();
@@ -472,44 +582,57 @@ export class ContestService {
         throw new ForbiddenException('Only the contest owner can add problems');
       }
 
-      const problem = await this.problemService.createProblem(problemDto, session);
+      const problem = await this.problemService.createProblem(
+        problemDto,
+        session,
+      );
 
       await this.contestModel.findByIdAndUpdate(
         contestId,
         { $push: { problems: problem._id } },
-        { session }
+        { session },
       );
 
       await session.commitTransaction();
 
       return {
         message: 'Problem added to contest successfully',
-        problemId: problem._id.toString()
+        problemId: problem._id.toString(),
       };
     } catch (error) {
       await session.abortTransaction();
-      throw new InternalServerErrorException(`Failed to add problem to contest: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to add problem to contest: ${error.message}`,
+      );
     } finally {
       session.endSession();
     }
   }
 
-  async removeProblemFromContest(contestId: string, problemId: string, userId: string): Promise<void> {
+  async removeProblemFromContest(
+    contestId: string,
+    problemId: string,
+    userId: string,
+  ): Promise<void> {
     const contest = await this.contestModel.findById(contestId);
     if (!contest) {
       throw new NotFoundException(`Contest with ID ${contestId} not found`);
     }
 
     if (contest.owner.toString() !== userId) {
-      throw new ForbiddenException('Only the contest owner can remove problems');
+      throw new ForbiddenException(
+        'Only the contest owner can remove problems',
+      );
     }
 
     const problemIndex = contest.problems.findIndex(
-      id => id.toString() === problemId
+      (id) => id.toString() === problemId,
     );
 
     if (problemIndex === -1) {
-      throw new NotFoundException(`Problem with ID ${problemId} not found in this contest`);
+      throw new NotFoundException(
+        `Problem with ID ${problemId} not found in this contest`,
+      );
     }
 
     contest.problems.splice(problemIndex, 1);
@@ -522,7 +645,7 @@ export class ContestService {
     contestId: string,
     problemId: string,
     testcasesDto: TestcaseDto[],
-    userId: string
+    userId: string,
   ): Promise<{ message: string; testcaseIds: string[] }> {
     const contest = await this.contestModel.findById(contestId);
     if (!contest) {
@@ -533,26 +656,32 @@ export class ContestService {
       throw new ForbiddenException('Only the contest owner can add testcases');
     }
 
-    const problemExists = contest.problems.some(p => p.toString() === problemId);
+    const problemExists = contest.problems.some(
+      (p) => p.toString() === problemId,
+    );
     if (!problemExists) {
-      throw new NotFoundException(`Problem with ID ${problemId} not found in this contest`);
+      throw new NotFoundException(
+        `Problem with ID ${problemId} not found in this contest`,
+      );
     }
 
-    const problemExists2 = await this.problemService.checkProblemExists(problemId);
+    const problemExists2 =
+      await this.problemService.checkProblemExists(problemId);
     if (!problemExists2) {
       throw new NotFoundException(`Problem with ID ${problemId} not found`);
     }
 
-    const createdTestcases = await this.testcaseService.createTestcases(testcasesDto);
+    const createdTestcases =
+      await this.testcaseService.createTestcases(testcasesDto);
 
     await this.problemService.addTestcasesToProblem(
       problemId,
-      createdTestcases.map(tc => tc._id)
+      createdTestcases.map((tc) => tc._id),
     );
 
     return {
       message: 'Testcases added successfully',
-      testcaseIds: createdTestcases.map(tc => tc._id.toString())
+      testcaseIds: createdTestcases.map((tc) => tc._id.toString()),
     };
   }
 
@@ -560,7 +689,7 @@ export class ContestService {
     contestId: string,
     problemId: string,
     testcaseIds: string[],
-    userId: string
+    userId: string,
   ): Promise<{ message: string }> {
     const contest = await this.contestModel.findById(contestId);
     if (!contest) {
@@ -568,22 +697,34 @@ export class ContestService {
     }
 
     if (contest.owner.toString() !== userId) {
-      throw new ForbiddenException('Only the contest owner can remove testcases');
+      throw new ForbiddenException(
+        'Only the contest owner can remove testcases',
+      );
     }
 
-    const problemExists = contest.problems.some(p => p.toString() === problemId);
+    const problemExists = contest.problems.some(
+      (p) => p.toString() === problemId,
+    );
     if (!problemExists) {
-      throw new NotFoundException(`Problem with ID ${problemId} not found in this contest`);
+      throw new NotFoundException(
+        `Problem with ID ${problemId} not found in this contest`,
+      );
     }
 
-    const problemExists2 = await this.problemService.checkProblemExists(problemId);
+    const problemExists2 =
+      await this.problemService.checkProblemExists(problemId);
     if (!problemExists2) {
       throw new NotFoundException(`Problem with ID ${problemId} not found`);
     }
 
-    await this.problemService.removeTestcasesFromProblem(problemId, testcaseIds);
+    await this.problemService.removeTestcasesFromProblem(
+      problemId,
+      testcaseIds,
+    );
 
-    await this.testcaseService.deleteTestcases(testcaseIds.map(id => new Types.ObjectId(id)));
+    await this.testcaseService.deleteTestcases(
+      testcaseIds.map((id) => new Types.ObjectId(id)),
+    );
 
     return { message: 'Testcases removed successfully' };
   }
@@ -592,7 +733,7 @@ export class ContestService {
     contestId: string,
     problemId: string,
     updateProblemDto: UpdateProblemDto,
-    userId: string
+    userId: string,
   ): Promise<void> {
     const contest = await this.contestModel.findById(contestId);
     if (!contest) {
@@ -600,12 +741,18 @@ export class ContestService {
     }
 
     if (contest.owner.toString() !== userId) {
-      throw new ForbiddenException('Only the contest owner can update problems');
+      throw new ForbiddenException(
+        'Only the contest owner can update problems',
+      );
     }
 
-    const problemExists = contest.problems.some(p => p.toString() === problemId);
+    const problemExists = contest.problems.some(
+      (p) => p.toString() === problemId,
+    );
     if (!problemExists) {
-      throw new NotFoundException(`Problem with ID ${problemId} not found in this contest`);
+      throw new NotFoundException(
+        `Problem with ID ${problemId} not found in this contest`,
+      );
     }
 
     await this.problemService.updateProblemData(problemId, updateProblemDto);
@@ -619,7 +766,7 @@ export class ContestService {
     contestId: string,
     problemId: string,
     testcasesToUpdate: UpdateTestcaseDto[],
-    userId: string
+    userId: string,
   ): Promise<void> {
     const contest = await this.contestModel.findById(contestId);
     if (!contest) {
@@ -627,24 +774,34 @@ export class ContestService {
     }
 
     if (contest.owner.toString() !== userId) {
-      throw new ForbiddenException('Only the contest owner can update testcases');
+      throw new ForbiddenException(
+        'Only the contest owner can update testcases',
+      );
     }
 
-    const problemExists = contest.problems.some(p => p.toString() === problemId);
+    const problemExists = contest.problems.some(
+      (p) => p.toString() === problemId,
+    );
     if (!problemExists) {
-      throw new NotFoundException(`Problem with ID ${problemId} not found in this contest`);
+      throw new NotFoundException(
+        `Problem with ID ${problemId} not found in this contest`,
+      );
     }
 
-    const problemExists2 = await this.problemService.checkProblemExists(problemId);
+    const problemExists2 =
+      await this.problemService.checkProblemExists(problemId);
     if (!problemExists2) {
       throw new NotFoundException(`Problem with ID ${problemId} not found`);
     }
 
-    const testcaseIds = await this.problemService.getProblemTestcaseIds(problemId);
+    const testcaseIds =
+      await this.problemService.getProblemTestcaseIds(problemId);
 
     for (const testcase of testcasesToUpdate) {
       if (!testcaseIds.includes(testcase.id)) {
-        throw new NotFoundException(`Testcase with ID ${testcase.id} not found in this problem`);
+        throw new NotFoundException(
+          `Testcase with ID ${testcase.id} not found in this problem`,
+        );
       }
     }
 
@@ -659,34 +816,40 @@ export class ContestService {
   }
 
   async getContestsByStatus(status: ContestStatus): Promise<Contest[]> {
-    return this.contestModel.find({
-      status,
-      isPublic: true
-    })
+    return this.contestModel
+      .find({
+        status,
+        isPublic: true,
+      })
       .populate('owner', 'username email')
       .select('-problems -registrations')
       .exec();
   }
 
   async getRegisteredContests(userId: string): Promise<Contest[]> {
-    return this.contestModel.find({
-      'registrations.user': userId,
-      'registrations.status': 'approved'
-    })
+    return this.contestModel
+      .find({
+        'registrations.user': userId,
+        'registrations.status': 'approved',
+      })
       .populate('owner', 'username email')
       .select('-problems -registrations')
       .exec();
   }
 
   async getOwnedContests(userId: string): Promise<Contest[]> {
-    return this.contestModel.find({ owner: new Types.ObjectId(userId) })
+    return this.contestModel
+      .find({ owner: new Types.ObjectId(userId) })
       .populate('owner', 'username email')
       .select('-registrations')
       .exec();
   }
 
-  async getProblemForContestant(contestId: string, problemId: string, userId: string): Promise<Problem> {
-
+  async getProblemForContestant(
+    contestId: string,
+    problemId: string,
+    userId: string,
+  ): Promise<Problem> {
     let contest = await this.contestCacheService.getCachedContest(contestId);
 
     if (!contest) {
@@ -700,13 +863,15 @@ export class ContestService {
       throw new NotFoundException('Contest not found');
     }
 
-    const problem = contest.problems.find(p => p._id.toString() === problemId);
+    const problem = contest.problems.find(
+      (p) => p._id.toString() === problemId,
+    );
     if (!problem) {
       throw new NotFoundException('Problem not found in this contest');
     }
 
     const isRegistered = contest.registrations.some(
-      reg => reg.user._id?.toString() === userId && reg.status === 'approved'
+      (reg) => reg.user._id?.toString() === userId && reg.status === 'approved',
     );
 
     if (!isRegistered) {
@@ -716,13 +881,19 @@ export class ContestService {
     return this.transformProblemResponse(problem);
   }
 
-  async getProblemForOwner(contestId: string, problemId: string, userId: string): Promise<Problem> {
+  async getProblemForOwner(
+    contestId: string,
+    problemId: string,
+    userId: string,
+  ): Promise<Problem> {
     const contest = await this.contestModel.findById(contestId);
     if (!contest) {
       throw new NotFoundException('Contest not found');
     }
 
-    const problemExists = contest.problems.some(p => p.toString() === problemId);
+    const problemExists = contest.problems.some(
+      (p) => p.toString() === problemId,
+    );
     if (!problemExists) {
       throw new NotFoundException('Problem not found in this contest');
     }
@@ -734,12 +905,13 @@ export class ContestService {
     return this.problemService.getProblemWithAllTestcases(problemId);
   }
 
-  async updateContestStatus(contestId: string, newStatus: ContestStatus): Promise<ContestDocument | null> {
-    return this.contestModel.findByIdAndUpdate(
-      contestId,
-      { status: newStatus },
-      { new: true }
-    ).exec();
+  async updateContestStatus(
+    contestId: string,
+    newStatus: ContestStatus,
+  ): Promise<ContestDocument | null> {
+    return this.contestModel
+      .findByIdAndUpdate(contestId, { status: newStatus }, { new: true })
+      .exec();
   }
 
   async fetchFullContestDetails(contestId: string): Promise<any> {
@@ -759,23 +931,24 @@ export class ContestService {
                 score: doc.score,
                 input: doc.input,
                 output: doc.output,
-                isPublic: true
+                isPublic: true,
               };
             } else {
               return {
                 _id: doc._id,
                 score: doc.score,
+                input: doc.input,
                 output: doc.output,
-                isPublic: false
+                isPublic: false,
               };
             }
-          }
-        }
+          },
+        },
       })
       .populate({
         path: 'registrations.user',
         model: 'User',
-        select: '_id username email'
+        select: '_id username email',
       })
       .select('-__v')
       .orFail(new NotFoundException(`Contest with ID ${contestId} not found`))
@@ -795,27 +968,28 @@ export class ContestService {
       description: contest.description,
       isPublic: contest.isPublic,
       leaderboardStatus: contest.leaderboardStatus,
-      problems: contest.problems.map(problem => ({
+      problems: contest.problems.map((problem) => ({
         _id: problem._id,
         name: problem.name,
         content: problem.content,
         difficulty: problem.difficulty,
         tags: problem.tags,
-        testcases: problem.testcases?.map(tc =>
-          tc.isPublic
-            ? {
-              _id: tc._id,
-              score: tc.score,
-              input: tc.input,
-              output: tc.output,
-              isPublic: true
-            }
-            : {
-              _id: tc._id,
-              score: tc.score
-            }
-        ) || []
-      }))
+        testcases:
+          problem.testcases?.map((tc) =>
+            tc.isPublic
+              ? {
+                  _id: tc._id,
+                  score: tc.score,
+                  input: tc.input,
+                  output: tc.output,
+                  isPublic: true,
+                }
+              : {
+                  _id: tc._id,
+                  score: tc.score,
+                },
+          ) || [],
+      })),
     };
   }
 
@@ -826,37 +1000,51 @@ export class ContestService {
       content: problem.content,
       difficulty: problem.difficulty,
       tags: problem.tags,
-      testcases: problem.testcases?.map(tc =>
-        tc.isPublic
-          ? {
-            _id: tc._id,
-            score: tc.score,
-            input: tc.input,
-            output: tc.output,
-            isPublic: true
-          }
-          : {
-            _id: tc._id,
-            score: tc.score
-          }
-      ) || []
+      testcases:
+        problem.testcases?.map((tc) =>
+          tc.isPublic
+            ? {
+                _id: tc._id,
+                score: tc.score,
+                input: tc.input,
+                output: tc.output,
+                isPublic: true,
+              }
+            : {
+                _id: tc._id,
+                score: tc.score,
+              },
+        ) || [],
     };
   }
 
   async updateContestCache(contestId: string) {
     const fullContestDetails = await this.fetchFullContestDetails(contestId);
 
-    const cachedContest = await this.contestCacheService.getCachedContest(contestId);
+    const cachedContest =
+      await this.contestCacheService.getCachedContest(contestId);
 
-    if (!cachedContest || JSON.stringify(cachedContest) !== JSON.stringify(fullContestDetails)) {
+    if (
+      !cachedContest ||
+      JSON.stringify(cachedContest) !== JSON.stringify(fullContestDetails)
+    ) {
       console.log(`🔄 Updating cache for contest ${contestId}`);
-      await this.contestCacheService.setCachedContest(contestId, fullContestDetails, 6000000);
+      await this.contestCacheService.setCachedContest(
+        contestId,
+        fullContestDetails,
+        6000000,
+      );
     } else {
-      console.log(`✅ Cache is already up-to-date for contest ${contestId}, skipping update.`);
+      console.log(
+        `✅ Cache is already up-to-date for contest ${contestId}, skipping update.`,
+      );
     }
   }
 
-  async getContestForOwner(contestId: string, userId: string): Promise<ContestDocument> {
+  async getContestForOwner(
+    contestId: string,
+    userId: string,
+  ): Promise<ContestDocument> {
     const contest = await this.contestModel
       .findById(contestId)
       .populate('owner', '_id username email')
@@ -865,13 +1053,13 @@ export class ContestService {
         model: 'Problem',
         populate: {
           path: 'testcases',
-          model: 'Testcase'
-        }
+          model: 'Testcase',
+        },
       })
       .populate({
         path: 'registrations.user',
         model: 'User',
-        select: '_id username email'
+        select: '_id username email',
       })
       .select('-registrations')
       .exec();
@@ -887,10 +1075,73 @@ export class ContestService {
 
     return contest;
   }
+
+  async getContestOwnerId(contestId: string): Promise<string> {
+    const contest = await this.contestModel
+      .findById(contestId)
+      .select('owner')
+      .lean();
+
+    if (!contest) {
+      throw new NotFoundException(`Contest with ID ${contestId} not found`);
+    }
+
+    return contest.owner.toString();
+  }
+
+  async getContestLeaderboardStatus(
+    contestId: string,
+  ): Promise<LeaderboardStatus> {
+    const contest = await this.contestModel
+      .findById(contestId)
+      .select('leaderboardStatus')
+      .lean();
+
+    if (!contest) {
+      throw new NotFoundException(`Contest with ID ${contestId} not found`);
+    }
+
+    return contest.leaderboardStatus;
+  }
+
+  async setContestLeaderboardStatus(
+    contestId: string,
+    userId: string,
+    newStatus: LeaderboardStatus,
+  ): Promise<{ message: string }> {
+    // Step 1: Lấy thông tin contest
+    const contest = await this.contestModel.findById(contestId);
+    if (!contest) {
+      throw new NotFoundException(`Contest with ID ${contestId} not found`);
+    }
+
+    // Step 2: Kiểm tra quyền owner
+    if (contest.owner.toString() !== userId) {
+      throw new ForbiddenException(
+        'Only the contest owner can update leaderboard status',
+      );
+    }
+
+    // Step 3: Validate status hợp lệ (nếu cần)
+    if (!Object.values(LeaderboardStatus).includes(newStatus)) {
+      console.error(`Invalid leaderboard status: ${newStatus}`);
+      throw new BadRequestException(`Invalid leaderboard status: ${newStatus}`);
+    }
+
+    // Step 4: Update status
+    contest.leaderboardStatus = newStatus;
+    await contest.save();
+
+    return { message: `Leaderboard status updated to ${newStatus}` };
+  }
 }
 
 interface ParticipantResult {
   email: string;
   status: string;
   message?: string;
+}
+
+interface LeaderboardWithStatus extends InitLeaderboardDto {
+  leaderboardStatus: LeaderboardStatus;
 }
