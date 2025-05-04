@@ -138,6 +138,7 @@ services:
       - JWT_SECRET=your-secret-key
       - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
       - REDIS_URL=redis://redis:6379
+      - INTERNAL_API_KEY=your-very-secret-internal-key
 
   code-manager-service:
     build: ./services/code_manager
@@ -157,6 +158,7 @@ services:
       - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=your-secret-key
+      - INTERNAL_API_KEY=your-very-secret-internal-key
 
   code-execute-worker-service:
     build: ./services/code_execute_worker
@@ -174,6 +176,7 @@ services:
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - INTERNAL_API_KEY=your-very-secret-internal-key
 
   chatbot-service:
     build: ./services/chatbot

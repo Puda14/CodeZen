@@ -34,14 +34,16 @@ async def evaluate_code(request):
     )
 
     try:
-      result = run_code_in_docker(user_dir=user_dir, processor=request.processor).rstrip(' \n\r')
+      result_raw, execution_time = run_code_in_docker(user_dir=user_dir, processor=request.processor)
+      result = result_raw.rstrip(' \n\r')
 
       if result == expected_result:
         results.append({
           "test_case": test_id,
           "status": "passed",
           "output": result,
-          "score": score
+          "score": score,
+          "execution_time": execution_time,
         })
         passed_count += 1
         total_score += score
@@ -50,7 +52,8 @@ async def evaluate_code(request):
           "test_case": test_id,
           "status": "failed",
           "output": result,
-          "score": 0
+          "score": 0,
+          "execution_time": execution_time,
         }
         if is_public:
           res["expected"] = expected_result

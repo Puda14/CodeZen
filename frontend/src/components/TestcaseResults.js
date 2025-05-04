@@ -49,7 +49,7 @@ export default function TestcaseResults({
         <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-md border border-red-300 dark:border-red-700">
           <p className="text-sm text-red-700 dark:text-red-300">
             {submissionResult.message ||
-              "An unknown error occurred during submission."}
+              "An unknown error occurred during submission processing."}
           </p>
         </div>
       </div>
@@ -64,6 +64,7 @@ export default function TestcaseResults({
     submissionResult.summary !== null
       ? submissionResult.summary
       : null;
+
   const overallStatus =
     submissionResult.status ||
     (summary
@@ -71,7 +72,9 @@ export default function TestcaseResults({
         ? "Accepted"
         : summary.passed > 0
         ? "Partial"
-        : "Failed"
+        : summary.total > 0
+        ? "Failed"
+        : "Processing"
       : "Processing");
 
   if (evaluationResults.length === 0 && !summary) {
@@ -82,8 +85,8 @@ export default function TestcaseResults({
         </h3>
         <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-md border border-gray-300 dark:border-gray-700">
           <p className={`text-sm font-medium ${getStatusColor(overallStatus)}`}>
-            Status: {overallStatus}{" "}
-            {submissionResult.message ? `- ${submissionResult.message}` : ""}
+            Status: {overallStatus}
+            {submissionResult.message ? ` - ${submissionResult.message}` : ""}
           </p>
         </div>
       </div>
@@ -101,17 +104,33 @@ export default function TestcaseResults({
             {evaluationResults.map((testResult, index) => {
               const originalTest = originalTestcases[index];
               const isPublicTest = originalTest?.isPublic === true;
+
               const status = testResult.status || "Unknown";
               const score = testResult.score;
               const userOutput = testResult.output;
               const errorMessage = testResult.error_message;
-              const testCaseName = testResult.test_case || index + 1;
+              const testCaseName = testResult.test_case || `Case ${index + 1}`;
+              const executionTime = testResult.execution_time;
+
+              const lowerStatus = status.toLowerCase();
               const isPassed =
-                status.toLowerCase().includes("pass") ||
-                status.toLowerCase().includes("accept");
-              const isError = status.toLowerCase().includes("error");
-              const input = originalTest?.input;
-              const expectedOutput = originalTest?.output;
+                lowerStatus.includes("pass") || lowerStatus.includes("accept");
+              const isError =
+                lowerStatus.includes("error") ||
+                lowerStatus.includes("exception");
+
+              const input = isPublicTest ? originalTest?.input : undefined;
+              const expectedOutput = isPublicTest
+                ? originalTest?.output
+                : undefined;
+
+              const formatTime = (time) => {
+                if (typeof time === "number" && time >= 0) {
+                  return `${time.toFixed(3)}s`;
+                }
+                return null;
+              };
+              const formattedTime = formatTime(executionTime);
 
               return (
                 <li key={testCaseName}>
@@ -132,17 +151,25 @@ export default function TestcaseResults({
                             size={16}
                           />
                           <span className="text-sm">
-                            Testcase {testCaseName}:{" "}
+                            {testCaseName}:{" "}
                             <span className="font-medium">{status}</span>
                           </span>
                         </div>
-                        {score !== undefined && (
-                          <span className="text-xs ml-2 font-mono text-gray-500 dark:text-gray-400">
-                            [{score} pts]
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2 ml-auto text-xs font-mono text-gray-500 dark:text-gray-400">
+                          {formattedTime && <span>({formattedTime})</span>}
+                          {score !== undefined && <span>[{score} pts]</span>}
+                        </div>
                       </summary>
                       <div className="pl-6 pr-2 py-2 border-l-2 border-gray-300 dark:border-gray-600 ml-2 mt-1 text-gray-700 dark:text-gray-300">
+                        {formattedTime && (
+                          <p className="text-xs mb-2">
+                            <span className="font-semibold text-gray-600 dark:text-gray-400">
+                              Execution Time:
+                            </span>{" "}
+                            <span className="font-mono">{formattedTime}</span>
+                          </p>
+                        )}
+
                         {isPassed ? (
                           <>
                             <CodeBlock label="Input" content={input} />
@@ -174,6 +201,12 @@ export default function TestcaseResults({
                               label="Your Output"
                               content={userOutput}
                             />
+                            {errorMessage && (
+                              <CodeBlock
+                                label="Details"
+                                content={errorMessage}
+                              />
+                            )}
                           </>
                         )}
                       </div>
@@ -185,14 +218,13 @@ export default function TestcaseResults({
                       )}`}
                     >
                       <span>
-                        Testcase {testCaseName}:{" "}
+                        {testCaseName}:{" "}
                         <span className="font-medium">{status}</span>
                       </span>
-                      {score !== undefined && (
-                        <span className="text-xs ml-2 font-mono text-gray-500 dark:text-gray-400">
-                          [{score} pts]
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 ml-auto text-xs font-mono text-gray-500 dark:text-gray-400">
+                        {formattedTime && <span>({formattedTime})</span>}
+                        {score !== undefined && <span>[{score} pts]</span>}
+                      </div>
                     </div>
                   )}
                 </li>
@@ -200,6 +232,7 @@ export default function TestcaseResults({
             })}
           </ul>
         )}
+
         {summary && (
           <p
             className={`mt-4 pt-3 border-t border-gray-300 dark:border-gray-700 text-sm font-medium ${getStatusColor(

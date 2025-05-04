@@ -15,11 +15,9 @@ const useCodeExecution = (contestId = null, problemId = null) => {
 
   const handleExecute = async () => {
     const payload = { processor: language, code, input_data: inputData };
-
     setIsLoadingRun(true);
     setOutput("Executing...");
     setSubmissionResult(null);
-
     try {
       const response = await codeManagerApi.post("/execute", payload);
       if (response.data?.result?.status === "success") {
@@ -38,8 +36,8 @@ const useCodeExecution = (contestId = null, problemId = null) => {
         );
       }
     } catch (error) {
-      console.error("Execution request failed:", error);
       const errorMsg =
+        error.response?.data?.detail ||
         error.response?.data?.message ||
         error.message ||
         "Error executing code.";
@@ -55,19 +53,16 @@ const useCodeExecution = (contestId = null, problemId = null) => {
       showToast("Cannot submit: Contest or Problem ID missing.", "error");
       return;
     }
-
     const payload = {
       processor: language,
       code,
       contestId,
       problemId,
     };
-
     setIsLoadingSubmit(true);
     setSubmissionResult(null);
     setOutput("");
     showToast("Submitting your solution...", "info");
-
     try {
       const response = await codeManagerApi.post("/evaluate", payload);
       if (response.data?.result) {
@@ -76,29 +71,39 @@ const useCodeExecution = (contestId = null, problemId = null) => {
         if (
           summary &&
           summary.failed === 0 &&
-          summary.passed === summary.total
+          summary.passed === summary.total &&
+          summary.total > 0
         ) {
           showToast(
-            `Accepted! Score: ${summary.total_score || "N/A"}`,
+            `Accepted! Score: ${summary.total_score ?? "N/A"}`,
             "success"
           );
         } else if (summary) {
           showToast(
-            `Submission evaluated: ${summary.passed}/${
-              summary.total
-            } passed. Score: ${summary.total_score || "N/A"}`,
+            `Submission evaluated: ${summary.passed ?? 0}/${
+              summary.total ?? 0
+            } passed. Score: ${summary.total_score ?? "N/A"}`,
             "warning"
           );
         } else {
-          showToast("Submission evaluated.", "info");
+          showToast(response.data.message || "Submission processed.", "info");
         }
       } else {
-        throw new Error("Invalid response structure from evaluation API.");
+        console.warn(
+          "Invalid response structure from evaluation API:",
+          response.data
+        );
+        throw new Error(
+          response.data?.message ||
+            "Received an unexpected response from evaluation service."
+        );
       }
     } catch (error) {
-      console.error("Evaluation request failed:", error);
       const errorMsg =
-        error.response?.data?.message || error.message || "Submission failed.";
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message ||
+        "Submission failed.";
       setSubmissionResult({
         status: "Error",
         message: errorMsg,

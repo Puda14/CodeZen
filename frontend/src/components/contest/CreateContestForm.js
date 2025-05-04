@@ -9,6 +9,7 @@ import { Difficulty } from "@/enums/difficulty.enum";
 import { Tags } from "@/enums/tags.enum";
 import MarkdownEditorWithPreview from "@/components/common/MarkdownEditorWithPreview";
 import NewTestcaseInput from "@/components/contest/owner/problem/NewTestcaseInput";
+import { submissionLimits } from "@/config/contestConfig";
 
 const tagColors = [
   "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100",
@@ -32,8 +33,30 @@ const ProblemInputGroup = ({
   const [tagSuggestions, setTagSuggestions] = useState([]);
 
   const handleProblemFieldChange = (field, value) => {
-    onChange(problemIndex, field, value);
+    if (field === "maxSubmissions") {
+      let processedValue = value;
+
+      if (value !== "") {
+        const numValue = parseInt(value, 10);
+
+        if (isNaN(numValue)) {
+          return;
+        }
+
+        if (numValue < submissionLimits.min) {
+          processedValue = submissionLimits.min;
+        } else if (numValue > submissionLimits.max) {
+          processedValue = submissionLimits.max;
+        } else {
+          processedValue = numValue;
+        }
+      }
+      onChange(problemIndex, field, processedValue);
+    } else {
+      onChange(problemIndex, field, value);
+    }
   };
+
   const handleTestcaseChange = (testcaseIndex, field, value) => {
     const updatedTestcases = (problem.testcases || []).map((tc, idx) =>
       idx === testcaseIndex ? { ...tc, [field]: value } : tc
@@ -143,25 +166,55 @@ const ProblemInputGroup = ({
           disabled={isSaving}
         />
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Difficulty <span className="text-red-500">*</span>
-        </label>
-        <select
-          value={problem.difficulty || Difficulty.NORMAL}
-          onChange={(e) =>
-            handleProblemFieldChange("difficulty", e.target.value)
-          }
-          className="w-full md:w-1/3 p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
-          disabled={isSaving}
-        >
-          {Object.values(Difficulty).map((level) => (
-            <option key={level} value={level}>
-              {level.charAt(0).toUpperCase() + level.slice(1)}
-            </option>
-          ))}
-        </select>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Difficulty <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={problem.difficulty || Difficulty.NORMAL}
+            onChange={(e) =>
+              handleProblemFieldChange("difficulty", e.target.value)
+            }
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isSaving}
+          >
+            {Object.values(Difficulty).map((level) => (
+              <option key={level} value={level}>
+                {level.charAt(0).toUpperCase() + level.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label
+            htmlFor={`maxSubmissions-${problemIndex}`}
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Max Submissions <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="number"
+            id={`maxSubmissions-${problemIndex}`}
+            name="maxSubmissions"
+            value={problem.maxSubmissions ?? ""}
+            onChange={(e) =>
+              handleProblemFieldChange("maxSubmissions", e.target.value)
+            }
+            required
+            min={submissionLimits.min}
+            max={submissionLimits.max}
+            step="1"
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            disabled={isSaving}
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Must be between {submissionLimits.min} and {submissionLimits.max}.
+          </p>
+        </div>
       </div>
+
       <div className="relative">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Tags <span className="text-red-500">*</span>
@@ -210,7 +263,8 @@ const ProblemInputGroup = ({
                 disabled={isSaving}
                 aria-label={`Remove tag ${Tags[tagKey] || tagKey}`}
               >
-                &times;
+                {" "}
+                &times;{" "}
               </button>
             </span>
           ))}
@@ -298,6 +352,7 @@ const CreateContestForm = () => {
         content: templateContent,
         difficulty: Difficulty.NORMAL,
         tags: [],
+        maxSubmissions: submissionLimits.default,
         testcases: [{ input: "", output: "", score: 10, isPublic: true }],
       },
     ]);
@@ -329,30 +384,26 @@ const CreateContestForm = () => {
     }
 
     let startDate, endDate, startTimeISO, endTimeISO;
-
     try {
       startDate = new Date(startTime);
       endDate = new Date(endTime);
-
       if (isNaN(startDate.getTime())) {
-        toast?.("Invalid Start Time selected.", "error");
+        toast?.("Invalid Start Time.", "error");
         return;
       }
       if (isNaN(endDate.getTime())) {
-        toast?.("Invalid End Time selected.", "error");
+        toast?.("Invalid End Time.", "error");
         return;
       }
-
       if (startDate >= endDate) {
         toast?.("End time must be after start time.", "error");
         return;
       }
-
       startTimeISO = startDate.toISOString();
       endTimeISO = endDate.toISOString();
     } catch (error) {
       console.error("Error processing date/time:", error);
-      toast?.("An error occurred while processing times.", "error");
+      toast?.("Error processing times.", "error");
       return;
     }
 
@@ -370,34 +421,33 @@ const CreateContestForm = () => {
         return;
       }
       if (!p.tags || p.tags.length === 0) {
+        toast?.(`Tags required for problem #${index + 1}.`, "error");
+        return;
+      }
+      const maxSubs = p.maxSubmissions;
+      if (
+        maxSubs === undefined ||
+        maxSubs === null ||
+        maxSubs === "" ||
+        isNaN(parseInt(maxSubs, 10)) ||
+        parseInt(maxSubs, 10) < submissionLimits.min ||
+        parseInt(maxSubs, 10) > submissionLimits.max
+      ) {
         toast?.(
-          `At least one tag is required for problem #${index + 1}.`,
+          `Max submissions for problem #${index + 1} must be between ${
+            submissionLimits.min
+          } and ${submissionLimits.max}.`,
           "error"
         );
         return;
       }
       if (!p.testcases || p.testcases.length === 0) {
-        toast?.(
-          `At least one testcase is required for problem #${index + 1}.`,
-          "error"
-        );
+        toast?.(`Testcases required for problem #${index + 1}.`, "error");
         return;
       }
-      if (
-        p.testcases.some(
-          (tc) =>
-            tc.input === undefined ||
-            tc.input === null ||
-            tc.output === undefined ||
-            tc.output === null ||
-            tc.input.trim() === "" ||
-            tc.output.trim() === ""
-        )
-      ) {
+      if (p.testcases.some((tc) => !tc.input?.trim() || !tc.output?.trim())) {
         toast?.(
-          `All testcases for problem #${
-            index + 1
-          } require non-empty input and output.`,
+          `Input/Output required for all testcases in problem #${index + 1}.`,
           "error"
         );
         return;
@@ -421,6 +471,7 @@ const CreateContestForm = () => {
         tags: (p.tags || [])
           .map((tagKey) => Tags[tagKey] || tagKey)
           .filter(Boolean),
+        maxSubmissions: parseInt(p.maxSubmissions, 10),
         testcases: (p.testcases || []).map((tc) => ({
           input: tc.input?.trim() ?? "",
           output: tc.output?.trim() ?? "",
@@ -431,22 +482,18 @@ const CreateContestForm = () => {
     };
 
     try {
+      console.log("Submitting Contest Payload:", payload);
       const response = await api.post("/contest/create", payload);
       if (response.data) {
         toast?.("Contest created successfully!", "success");
         router.push("/contests");
       } else {
-        throw new Error(
-          response.data?.message ||
-            "Contest creation failed with no specific error message."
-        );
+        throw new Error(response.data?.message || "Contest creation failed.");
       }
     } catch (error) {
       console.error("Failed to create contest:", error);
       const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "An unknown error occurred.";
+        error.response?.data?.message || error.message || "Unknown error.";
       toast?.(`Failed to create contest: ${errorMessage}`, "error");
     } finally {
       setIsLoading(false);
@@ -541,7 +588,8 @@ const CreateContestForm = () => {
             htmlFor="isPublic"
             className="text-sm font-medium text-gray-700 dark:text-gray-300"
           >
-            Publicly Visible Contest
+            {" "}
+            Publicly Visible Contest{" "}
           </label>
           <FiInfo
             size={14}
@@ -554,7 +602,8 @@ const CreateContestForm = () => {
             htmlFor="leaderboardStatus"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
           >
-            Leaderboard Status
+            {" "}
+            Leaderboard Status{" "}
           </label>
           <select
             id="leaderboardStatus"
@@ -576,7 +625,8 @@ const CreateContestForm = () => {
         </h3>
         {templateError && (
           <p className="text-sm text-yellow-600 dark:text-yellow-400">
-            Warning: Could not load default problem template.
+            {" "}
+            Warning: Could not load default problem template.{" "}
           </p>
         )}
         {problems.map((p, index) => (
@@ -606,14 +656,15 @@ const CreateContestForm = () => {
           className="px-4 py-2 border border-gray-300 rounded shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
           disabled={isLoading}
         >
-          Cancel
+          {" "}
+          Cancel{" "}
         </button>
         <button
           type="submit"
           className="px-6 py-2 border border-transparent rounded shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center gap-2"
           disabled={isLoading}
         >
-          {isLoading && <FiLoader className="animate-spin" />}
+          {isLoading && <FiLoader className="animate-spin" />}{" "}
           {isLoading ? "Creating Contest..." : "Create Contest"}
         </button>
       </div>

@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { InternalApiGuard } from './internal-api.guard';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, InternalApiGuard],
+  exports: [AuthService, InternalApiGuard],
 })
-export class AuthModule { }
+export class AuthModule {}

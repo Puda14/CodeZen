@@ -2,8 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Difficulty } from '../common/enums/difficulty.enum';
 import { Tags } from '../common/enums/tags.enum';
-import { Testcase } from '../testcase/testcase.schema';
-import mongoose from 'mongoose';
+import { AppConfig } from '../config/app.config';
 
 export type ProblemDocument = Problem & Document & { _id: string };
 
@@ -20,6 +19,15 @@ export class Problem {
 
   @Prop({ type: [String], enum: Object.values(Tags), default: [] })
   tags: string[];
+
+  @Prop({
+    type: Number,
+    required: true,
+    min: AppConfig.problem.minSubmissions,
+    max: AppConfig.problem.maxSubmissions,
+    default: AppConfig.problem.defaultSubmissions,
+  })
+  maxSubmissions: number;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Testcase' }], default: [] })
   testcases: Types.ObjectId[];

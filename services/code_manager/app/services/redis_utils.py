@@ -33,8 +33,15 @@ def get_problem_testcases(contest: dict, problem_id: str) -> list:
   problem = next((p for p in contest.get("problems", []) if p["_id"] == problem_id), None)
   if not problem:
     raise HTTPException(status_code=404, detail="Problem not found in contest.")
-  
+
   testcases = problem.get("testcases", [])
   if not testcases:
     raise HTTPException(status_code=400, detail="No testcases found for the problem.")
   return testcases
+
+def get_problem_max_submissions(contest: dict, problem_id: str) -> int:
+    problem = next((p for p in contest.get("problems", []) if p["_id"] == problem_id), None)
+    if not problem:
+      raise HTTPException(status_code=404, detail="Problem not found in contest.")
+    max_submissions = problem.get("maxSubmissions", 0)
+    return max_submissions

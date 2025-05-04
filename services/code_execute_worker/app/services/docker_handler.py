@@ -1,6 +1,7 @@
 import os
 import docker  # type: ignore
 import logging
+import time
 from app.exceptions import (
   CompilationErrorException,
   RuntimeErrorException,
@@ -67,6 +68,8 @@ def run_code_in_docker(user_dir: str, processor: str):
     # Step 2: Execute the code
     try:
       logging.info("Running code...")
+
+      start_time = time.perf_counter()
       run_logs = client.containers.run(
         image=image,
         command=f"bash -c '{run_command}'",
@@ -87,10 +90,13 @@ def run_code_in_docker(user_dir: str, processor: str):
         remove=True,
         ulimits=container_ulimits,
       )
+      end_time = time.perf_counter()
+      elapsed_time = end_time - start_time
+
       logs_decoded = run_logs.decode("utf-8")
 
-      logging.info("Execution successful.")
-      return logs_decoded
+      logging.info(f"Execution successful. Execution time: {elapsed_time:.4f}s")
+      return logs_decoded, elapsed_time
 
     except docker.errors.ContainerError as e:
       logs = e.stderr.decode("utf-8")
