@@ -8,54 +8,63 @@ import {
   FiLoader,
   FiPlus,
   FiTrash2,
+  FiAlertCircle,
 } from "react-icons/fi";
 import { useParams } from "next/navigation";
 import api from "@/utils/coreApi";
 import { useToast } from "@/context/ToastProvider";
 import SingleTestcase from "./SingleTestcase";
 import AddTestcasesModal from "./AddTestcasesModal";
-import ConfirmModal from "@/components/common/ConfirmModal"; // Use your confirmation modal
+import ConfirmModal from "@/components/common/ConfirmModal";
 
-/**
- * Manages a list of testcases: viewing, editing, adding, and deleting.
- * @param {Object[]} initialTestcases - The initial array of testcases.
- * @param {string} problemId - The ID of the parent problem.
- * @param {function} [onUpdateSuccess] - Callback triggered after any successful update (add, edit, delete) to signal data refresh.
- */
-const ProblemTestcases = ({
-  testcases: initialTestcases = [],
-  problemId,
-  onUpdateSuccess,
-}) => {
+const ProblemTestcases = ({ problemId }) => {
   const { id: contestId } = useParams();
   const toastContextValue = useToast();
   const toast = toastContextValue?.showToast;
+  const [testcases, setTestcases] = useState([]);
+  const [lastSavedTestcases, setLastSavedTestcases] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [testcases, setTestcases] = useState(initialTestcases);
-  const [lastSavedTestcases, setLastSavedTestcases] =
-    useState(initialTestcases);
-  const justSaved = useRef(false);
-
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
+  const fetchTestcases = useCallback(async () => {
+    if (!contestId || !problemId) {
+      setError("Missing contest or problem ID.");
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const apiUrl = `/contest/${contestId}/problems/${problemId}/owner`;
+      const response = await api.get(apiUrl);
+      const fetchedTestcases = response.data?.testcases || [];
+      setTestcases(fetchedTestcases);
+      setLastSavedTestcases(fetchedTestcases);
+    } catch (err) {
+      console.error("Failed to fetch testcases:", err);
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to load testcases.";
+      setError(errorMsg);
+      toast?.(errorMsg, "error");
+      setTestcases([]);
+      setLastSavedTestcases([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [contestId, problemId, toast]);
+
   useEffect(() => {
-    if (!isEditing && !justSaved.current) {
-      setTestcases(initialTestcases);
-      setLastSavedTestcases(initialTestcases);
-      if (isDeleteMode) {
-        setIsDeleteMode(false);
-        setSelectedIds(new Set());
-      }
-    }
-    if (!isEditing) {
-      justSaved.current = false;
-    }
-  }, [initialTestcases, isEditing]);
+    fetchTestcases();
+  }, [fetchTestcases]);
 
   const handleTestcaseChange = useCallback((index, field, value) => {
     setTestcases((current) =>
@@ -66,30 +75,29 @@ const ProblemTestcases = ({
   const hasChanges = useCallback(
     (currentTc, index) => {
       const originalTc = lastSavedTestcases[index];
-      if (!originalTc) return false;
+      if (!originalTc) return true;
+      const currentIsPublic =
+        currentTc.isPublic === "true" || currentTc.isPublic === true;
+      const originalIsPublic =
+        originalTc.isPublic === "true" || originalTc.isPublic === true;
       return (
         Number(currentTc.score) !== Number(originalTc.score) ||
-        (currentTc.isPublic === "true" || currentTc.isPublic === true) !==
-          originalTc.isPublic ||
-        currentTc.input !== originalTc.input ||
-        currentTc.output !== originalTc.output
+        currentIsPublic !== originalIsPublic ||
+        (currentTc.input ?? "") !== (originalTc.input ?? "") ||
+        (currentTc.output ?? "") !== (originalTc.output ?? "")
       );
     },
     [lastSavedTestcases]
   );
 
   const cancelEditing = () => {
-    setTestcases(initialTestcases);
-    setLastSavedTestcases(initialTestcases);
-    justSaved.current = false;
+    setTestcases([...lastSavedTestcases]);
     setIsEditing(false);
   };
 
   const handleUpdateTestcase = async () => {
-    if (typeof toast !== "function") console.error("Toast unavailable");
-
     if (!contestId || !problemId) {
-      toast?.("Cannot save: Invalid contest or problem reference.", "error");
+      toast?.("Cannot save: Invalid context.", "error");
       return;
     }
 
@@ -98,7 +106,7 @@ const ProblemTestcases = ({
       .filter((tc) => hasChanges(tc, tc.originalIndex))
       .map((tc) => ({
         id: tc._id || tc.id,
-        score: Number(tc.score),
+        score: Number(tc.score) || 0,
         input: tc.input ?? "",
         output: tc.output ?? "",
         isPublic: tc.isPublic === "true" || tc.isPublic === true,
@@ -114,17 +122,10 @@ const ProblemTestcases = ({
     setIsSaving(true);
     const apiUrl = `/contest/${contestId}/problems/${problemId}/testcases`;
     try {
-      const response = await api.patch(apiUrl, changedTestcasesPayload);
-      if (response.status === 200 || response.status === 204 || response.data) {
-        toast?.("Testcases updated successfully!", "success");
-        const savedState = [...testcases];
-        setLastSavedTestcases(savedState);
-        justSaved.current = true;
-        setIsEditing(false);
-        if (onUpdateSuccess) onUpdateSuccess();
-      } else {
-        throw new Error(response.data?.message || "Update failed");
-      }
+      await api.patch(apiUrl, changedTestcasesPayload);
+      toast?.("Testcases updated successfully!", "success");
+      setIsEditing(false);
+      fetchTestcases();
     } catch (error) {
       const errorMessage =
         error.response?.data?.message || error.message || "Unknown error";
@@ -141,19 +142,15 @@ const ProblemTestcases = ({
     const apiUrl = `/contest/${contestId}/problems/${problemId}/testcases`;
 
     try {
-      const response = await api.delete(apiUrl, { data: idsToDelete });
-      if (response.status === 200 || response.status === 204 || response.data) {
-        toast?.(
-          `${idsToDelete.length} testcase(s) deleted successfully!`,
-          "success"
-        );
-        setSelectedIds(new Set());
-        setIsDeleteMode(false);
-        setShowDeleteConfirmModal(false);
-        if (onUpdateSuccess) onUpdateSuccess();
-      } else {
-        throw new Error(response.data?.message || "Delete failed");
-      }
+      await api.delete(apiUrl, { data: { ids: idsToDelete } });
+      toast?.(
+        `${idsToDelete.length} testcase(s) deleted successfully!`,
+        "success"
+      );
+      setSelectedIds(new Set());
+      setIsDeleteMode(false);
+      setShowDeleteConfirmModal(false);
+      fetchTestcases();
     } catch (error) {
       console.error("Failed to delete testcases:", error);
       const errorMessage =
@@ -167,9 +164,7 @@ const ProblemTestcases = ({
 
   const handleAddTestcasesSuccess = () => {
     setShowAddModal(false);
-    if (onUpdateSuccess) {
-      onUpdateSuccess();
-    }
+    fetchTestcases();
   };
 
   const toggleDeleteMode = () => {
@@ -195,11 +190,35 @@ const ProblemTestcases = ({
     setShowDeleteConfirmModal(true);
   };
 
-  if (!initialTestcases) return <p>Loading testcases...</p>;
+  // --- Render Logic ---
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center p-4">
+        <FiLoader className="animate-spin text-blue-500" />
+        <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+          Loading testcases...
+        </span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm p-4 bg-red-50 dark:bg-red-900/30 rounded border border-red-200 dark:border-red-700">
+        <FiAlertCircle />
+        <span>{error}</span>
+        <button
+          onClick={fetchTestcases}
+          className="ml-auto text-xs underline hover:text-red-800 dark:hover:text-red-300"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* Header & Controls */}
       <div className="flex justify-between items-center border-b pb-2 mb-4 dark:border-gray-700">
         <h4 className="font-semibold text-gray-700 dark:text-gray-200">
           Testcases ({testcases.length})
@@ -213,14 +232,16 @@ const ProblemTestcases = ({
                 className="text-sm text-blue-600 hover:underline disabled:opacity-50 flex items-center gap-1"
                 disabled={isSaving}
               >
-                <FiSave /> Save
+                {" "}
+                <FiSave /> Save{" "}
               </button>
               <button
                 onClick={cancelEditing}
                 className="text-sm text-gray-600 hover:underline disabled:opacity-50 flex items-center gap-1"
                 disabled={isSaving}
               >
-                <FiX /> Cancel
+                {" "}
+                <FiX /> Cancel{" "}
               </button>
             </>
           ) : isDeleteMode ? (
@@ -231,14 +252,16 @@ const ProblemTestcases = ({
                 className="text-sm text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                 disabled={isDeleting || selectedIds.size === 0}
               >
-                <FiTrash2 /> Delete ({selectedIds.size})
+                {" "}
+                <FiTrash2 /> Delete ({selectedIds.size}){" "}
               </button>
               <button
                 onClick={toggleDeleteMode}
                 className="text-sm text-gray-600 hover:underline disabled:opacity-50 flex items-center gap-1"
                 disabled={isDeleting}
               >
-                <FiX /> Cancel
+                {" "}
+                <FiX /> Cancel{" "}
               </button>
             </>
           ) : (
@@ -247,36 +270,36 @@ const ProblemTestcases = ({
                 onClick={() => setShowAddModal(true)}
                 className="text-sm text-green-600 hover:underline flex items-center gap-1"
               >
-                <FiPlus /> Add
+                {" "}
+                <FiPlus /> Add{" "}
               </button>
               <button
                 onClick={toggleDeleteMode}
                 className="text-sm text-red-600 hover:underline flex items-center gap-1"
               >
-                <FiTrash2 /> Delete
+                {" "}
+                <FiTrash2 /> Delete{" "}
               </button>
               <button
                 onClick={() => setIsEditing(true)}
                 className="text-sm text-blue-600 hover:underline flex items-center gap-1"
               >
-                <FiEdit3 /> Edit
+                {" "}
+                <FiEdit3 /> Edit{" "}
               </button>
             </>
           )}
         </div>
       </div>
 
-      {/* Testcase List */}
       <div className="space-y-4">
         {testcases.map((tc, index) => {
           const testcaseId = tc._id || tc.id;
-          if (!testcaseId) {
-            console.warn("Testcase missing ID, cannot select/delete:", tc);
-          }
-          const isSelected = testcaseId ? selectedIds.has(testcaseId) : false;
+          const canSelect = !!testcaseId;
+          const isSelected = canSelect ? selectedIds.has(testcaseId) : false;
           return (
             <SingleTestcase
-              key={testcaseId || `testcase-${index}`}
+              key={testcaseId || `new-testcase-${index}`}
               testcase={tc}
               index={index}
               isEditing={isEditing}
@@ -284,18 +307,17 @@ const ProblemTestcases = ({
               onChange={handleTestcaseChange}
               isDeleteMode={isDeleteMode}
               isSelected={isSelected}
-              onSelect={testcaseId ? handleTestcaseSelect : () => {}}
+              onSelect={canSelect ? handleTestcaseSelect : undefined}
             />
           );
         })}
-        {testcases.length === 0 && (
+        {testcases.length === 0 && !isLoading && (
           <p className="text-gray-500 dark:text-gray-400 italic text-sm">
-            No testcases available for this problem.
+            No testcases available for this problem. Click 'Add' to create some.
           </p>
         )}
       </div>
 
-      {/* Modals */}
       <AddTestcasesModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -304,7 +326,6 @@ const ProblemTestcases = ({
         problemId={problemId}
       />
 
-      {/* Use your existing ConfirmModal */}
       {showDeleteConfirmModal && (
         <ConfirmModal
           message={`Are you sure you want to delete ${selectedIds.size} selected testcase(s)? This action cannot be undone.`}
