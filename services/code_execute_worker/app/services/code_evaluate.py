@@ -23,7 +23,7 @@ async def evaluate_code(request):
   for idx, testcase in enumerate(testcases, start=1):
     test_id = f"test{idx:02d}"
     input_data = testcase.get("input", "")
-    expected_result = testcase.get("output", "").strip()
+    expected_result = testcase.get("output", "").rstrip(' \n\r')
     score = testcase.get("score", 0)
     is_public = testcase.get("isPublic", False)
 
@@ -34,7 +34,7 @@ async def evaluate_code(request):
     )
 
     try:
-      result = run_code_in_docker(user_dir=user_dir, processor=request.processor).strip()
+      result = run_code_in_docker(user_dir=user_dir, processor=request.processor).rstrip(' \n\r')
 
       if result == expected_result:
         results.append({
