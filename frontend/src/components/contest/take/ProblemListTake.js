@@ -1,10 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import { FiChevronRight, FiTag } from "react-icons/fi";
+import { FiChevronRight, FiTag, FiStar } from "react-icons/fi";
 
 const ProblemListTake = ({ problems = [], contestId }) => {
   if (!problems || problems.length === 0) {
     return (
-      <p className="text-center text-gray-500">
+      <p className="text-center text-gray-500 dark:text-gray-400 py-10">
         No problems available for this contest.
       </p>
     );
@@ -30,46 +32,59 @@ const ProblemListTake = ({ problems = [], contestId }) => {
 
   return (
     <div className="space-y-4">
-      {problems.map((problem, index) => (
-        <Link
-          href={`/contests/${contestId}/problem/${problem._id}`}
-          key={problem._id || index}
-          className="block p-5 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200 dark:border-gray-700"
-        >
-          <div className="flex justify-between items-start">
-            <div className="flex-grow mr-4">
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
-                Problem {index + 1}: {problem.name || "Unnamed Problem"}
-              </h3>
-              <div className="flex flex-wrap items-center gap-2">
-                {problem.difficulty && (
-                  <span
-                    className={`text-xs font-semibold px-2.5 py-1 rounded ${getDifficultyClass(
-                      problem.difficulty
-                    )}`}
-                  >
-                    {problem.difficulty}
-                  </span>
-                )}
-                {problem.tags &&
-                  problem.tags.length > 0 &&
-                  problem.tags.map((tag, tagIndex) => (
-                    <span key={tagIndex} className={tagClass}>
-                      <FiTag size={12} />
-                      {tag}
+      {problems.map((problem, index) => {
+        const totalProblemScore = Array.isArray(problem.testcases)
+          ? problem.testcases.reduce((sum, tc) => sum + (tc.score || 0), 0)
+          : 0;
+
+        return (
+          <Link
+            href={`/contests/${contestId}/problem/${problem._id}`}
+            key={problem._id || index}
+            className="block p-5 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200 dark:border-gray-700"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-grow mr-4">
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                  Problem {index + 1}: {problem.name || "Unnamed Problem"}
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  {problem.difficulty && (
+                    <span
+                      className={`text-xs font-semibold px-2.5 py-1 rounded ${getDifficultyClass(
+                        problem.difficulty
+                      )}`}
+                    >
+                      {problem.difficulty}
                     </span>
-                  ))}
+                  )}
+                  {problem.tags &&
+                    problem.tags.length > 0 &&
+                    problem.tags.map((tag, tagIndex) => (
+                      <span key={tagIndex} className={tagClass}>
+                        <FiTag size={12} />
+                        {tag}
+                      </span>
+                    ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end flex-shrink-0 ml-2">
+                <div className="flex items-center text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
+                  <FiStar className="w-4 h-4 mr-1 text-yellow-500" />
+                  <span>{totalProblemScore} points</span>
+                </div>
+                <div className="mt-auto">
+                  <FiChevronRight
+                    className="text-gray-400 dark:text-gray-500"
+                    size={24}
+                  />
+                </div>
               </div>
             </div>
-            <div className="flex-shrink-0 self-center">
-              <FiChevronRight
-                className="text-gray-400 dark:text-gray-500"
-                size={24}
-              />
-            </div>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        );
+      })}
     </div>
   );
 };
