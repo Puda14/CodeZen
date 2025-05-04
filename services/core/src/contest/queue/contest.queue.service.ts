@@ -10,8 +10,8 @@ import { ContestStatus } from '../../common/enums/contest.enum';
 export class ContestQueueService implements OnModuleInit {
   constructor(
     @InjectModel(Contest.name) private contestModel: Model<ContestDocument>,
-    @InjectQueue('contestQueue') private readonly contestQueue: Queue
-  ) { }
+    @InjectQueue('contestQueue') private readonly contestQueue: Queue,
+  ) {}
 
   async onModuleInit() {
     console.log('🔄 Cleaning old delayed jobs...');
@@ -36,9 +36,11 @@ export class ContestQueueService implements OnModuleInit {
 
     await Promise.all(
       jobs.map(async (job) => {
-        console.log(`🗑️ Removing job ${job.id} for contest ${job.data.contestId}`);
+        console.log(
+          `🗑️ Removing job ${job.id} for contest ${job.data.contestId}`,
+        );
         return job.remove();
-      })
+      }),
     );
 
     console.log('✅ All delayed jobs removed.');
@@ -48,20 +50,22 @@ export class ContestQueueService implements OnModuleInit {
     const nowUtc = new Date(new Date().toISOString());
     const upcomingContests = await this.contestModel.find({
       status: ContestStatus.UPCOMING,
-      start_time: { $gt: nowUtc }
+      start_time: { $gt: nowUtc },
     });
 
     for (const contest of upcomingContests) {
       const startTime = new Date(contest.start_time);
       const delay = startTime.getTime() - nowUtc.getTime();
 
-      console.log(`📌 Scheduling contest ${contest._id} with delay ${delay} ms`);
+      console.log(
+        `📌 Scheduling contest ${contest._id} with delay ${delay} ms`,
+      );
 
       if (delay > 0) {
         const job = await this.contestQueue.add(
           'updateStatus',
           { contestId: contest._id, newStatus: ContestStatus.ONGOING },
-          { delay }
+          { delay },
         );
         console.log(`✅ Job ${job.id} added for contest ${contest._id}`);
       }
@@ -74,14 +78,16 @@ export class ContestQueueService implements OnModuleInit {
 
     const ongoingContests = await this.contestModel.find({
       status: ContestStatus.ONGOING,
-      end_time: { $gt: nowUtc }
+      end_time: { $gt: nowUtc },
     });
 
     for (const contest of ongoingContests) {
       await this.scheduleFinishContest(contest);
     }
 
-    console.log(`✅ Rescheduled ${ongoingContests.length} finish jobs for ongoing contests.`);
+    console.log(
+      `✅ Rescheduled ${ongoingContests.length} finish jobs for ongoing contests.`,
+    );
   }
 
   async scheduleContest(contest: ContestDocument) {
@@ -90,25 +96,29 @@ export class ContestQueueService implements OnModuleInit {
     const delay = startTime.getTime() - nowUtc.getTime();
 
     if (delay > 0 && contest.status === ContestStatus.UPCOMING) {
-      console.log(`📌 Scheduling contest ${contest._id} with delay ${delay} ms`);
+      console.log(
+        `📌 Scheduling contest ${contest._id} with delay ${delay} ms`,
+      );
 
       const job = await this.contestQueue.add(
         'updateStatus',
         { contestId: contest._id, newStatus: ContestStatus.ONGOING },
-        { delay }
+        { delay },
       );
 
       console.log(`✅ Job ${job.id} added for contest ${contest._id}`);
       return job;
     } else {
-      console.log(`⏭️ Skipping scheduling for contest ${contest._id} - no delay needed or not in UPCOMING status`);
+      console.log(
+        `⏭️ Skipping scheduling for contest ${contest._id} - no delay needed or not in UPCOMING status`,
+      );
       return null;
     }
   }
 
   async getDelayedJobsForContest(contestId: string) {
     const jobs = await this.contestQueue.getJobs(['delayed']);
-    return jobs.filter(job => job.data.contestId === contestId);
+    return jobs.filter((job) => job.data.contestId === contestId);
   }
 
   async removeJobById(jobId: string) {
@@ -126,18 +136,24 @@ export class ContestQueueService implements OnModuleInit {
     const delay = endTime.getTime() - nowUtc.getTime();
 
     if (delay > 0) {
-      console.log(`📌 Scheduling contest ${contest._id} to finish in ${delay} ms`);
+      console.log(
+        `📌 Scheduling contest ${contest._id} to finish in ${delay} ms`,
+      );
 
       const job = await this.contestQueue.add(
         'updateStatus',
         { contestId: contest._id, newStatus: ContestStatus.FINISHED },
-        { delay }
+        { delay },
       );
 
-      console.log(`✅ Job ${job.id} added for contest ${contest._id} to finish`);
+      console.log(
+        `✅ Job ${job.id} added for contest ${contest._id} to finish`,
+      );
       return job;
     } else {
-      console.log(`⏭️ Skipping scheduling for contest ${contest._id} - already past end_time`);
+      console.log(
+        `⏭️ Skipping scheduling for contest ${contest._id} - already past end_time`,
+      );
       return null;
     }
   }

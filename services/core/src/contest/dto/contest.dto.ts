@@ -1,6 +1,17 @@
-import { IsNotEmpty, IsString, IsArray, IsDate, IsEnum, IsBoolean, ValidateNested } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsArray,
+  IsDate,
+  IsEnum,
+  IsBoolean,
+  ValidateNested,
+} from 'class-validator';
 import { ProblemDto } from '../../problem/dto/problem.dto';
-import { ContestStatus, LeaderboardStatus } from '../../common/enums/contest.enum';
+import {
+  ContestStatus,
+  LeaderboardStatus,
+} from '../../common/enums/contest.enum';
 import { Type } from 'class-transformer';
 
 export class ContestDto {

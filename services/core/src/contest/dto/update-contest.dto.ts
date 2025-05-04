@@ -1,5 +1,16 @@
-import { IsOptional, IsString, IsArray, IsDate, IsEnum, IsBoolean, ValidateNested } from 'class-validator';
-import { ContestStatus, LeaderboardStatus } from '../../common/enums/contest.enum';
+import {
+  IsOptional,
+  IsString,
+  IsArray,
+  IsDate,
+  IsEnum,
+  IsBoolean,
+  ValidateNested,
+} from 'class-validator';
+import {
+  ContestStatus,
+  LeaderboardStatus,
+} from '../../common/enums/contest.enum';
 import { Type } from 'class-transformer';
 
 export class UpdateContestDto {
@@ -17,9 +28,9 @@ export class UpdateContestDto {
   @IsDate()
   end_time?: Date;
 
-  @IsOptional()
-  @IsEnum(ContestStatus)
-  status?: ContestStatus;
+  // @IsOptional()
+  // @IsEnum(ContestStatus)
+  // status?: ContestStatus;
 
   @IsOptional()
   @IsString()
@@ -29,7 +40,7 @@ export class UpdateContestDto {
   @IsBoolean()
   isPublic?: boolean;
 
-  @IsOptional()
-  @IsEnum(LeaderboardStatus)
-  leaderboardStatus?: LeaderboardStatus;
+  // @IsOptional()
+  // @IsEnum(LeaderboardStatus)
+  // leaderboardStatus?: LeaderboardStatus;
 }

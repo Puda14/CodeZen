@@ -14,6 +14,9 @@ export class LeaderboardUserInfoDto {
 
 export class ProblemScoreDto {
   @IsString()
+  p: string;
+
+  @IsString()
   problemId: string;
 
   @IsNumber()

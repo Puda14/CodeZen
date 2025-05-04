@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ContestService } from './contest.service';
 import { ContestController } from './contest.controller';
@@ -22,13 +22,13 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
     ProblemModule,
     TestcaseModule,
     UserModule,
-    LeaderboardModule,
+    forwardRef(() => LeaderboardModule),
     BullModule.registerQueue({
       name: 'contestQueue',
       connection: {
         host: 'redis',
-        port: 6379
-      }
+        port: 6379,
+      },
     }),
   ],
   providers: [
@@ -36,9 +36,9 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module';
     ContestStatusGuard,
     ContestQueueService,
     ContestProcessor,
-    ContestCacheService
+    ContestCacheService,
   ],
   controllers: [ContestController, QueueController],
   exports: [ContestService, ContestCacheService],
 })
-export class ContestModule { }
+export class ContestModule {}

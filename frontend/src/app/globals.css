@@ -171,13 +171,13 @@ textarea:focus {
 
 /* ======= Code Block ======= */
 .markdown-body pre {
-  @apply bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 
+  @apply bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200
          rounded-lg p-4 overflow-x-auto border border-gray-300 dark:border-gray-700 shadow-md;
 }
 
 /* ======= Code Block Specific for plaintext ======= */
 .markdown-body pre[data-language="plaintext"] {
-  @apply bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-300 
+  @apply bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-300
          rounded-lg p-4 overflow-x-auto border border-gray-400 dark:border-gray-600 shadow-lg;
 }
 
@@ -222,4 +222,40 @@ textarea:focus {
 /* HR Line */
 .markdown-body hr {
   @apply border-t border-gray-300 dark:border-gray-600 my-6;
+}
+
+/* Add custom animation for flashing */
+@layer utilities {
+  @keyframes flash-bg {
+    0%,
+    100% {
+      background-color: transparent;
+    }
+    50% {
+      background-color: theme("colors.blue.200");
+    } /* Adjust flash color */
+  }
+  .animate-flash {
+    animation: flash-bg 0.8s ease-out;
+  }
+
+  /* Dark mode flash */
+  .dark .dark\:animate-flash {
+    animation: flash-bg-dark 0.8s ease-out;
+  }
+  @keyframes flash-bg-dark {
+    0%,
+    100% {
+      background-color: transparent;
+    }
+    50% {
+      background-color: theme("colors.blue.800");
+    } /* Adjust dark flash color */
+  }
+}
+
+/* Style for table layout animations */
+/* Optional: Prevent text selection during animation */
+.leaderboard-tbody-animating td {
+  user-select: none;
 }
