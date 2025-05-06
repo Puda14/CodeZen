@@ -30,12 +30,14 @@ const tagColors = [
 
 const ProblemInfo = ({ problem, onProblemDeleted }) => {
   const { id: contestId } = useParams();
-  const toastContextValue = useToast();
-  const toast = toastContextValue?.showToast;
+  const toast = useToast()?.showToast;
+
   const [name, setName] = useState(problem.name);
   const [difficulty, setDifficulty] = useState(problem.difficulty);
   const [tags, setTags] = useState(problem.tags || []);
   const [content, setContent] = useState(problem.content);
+  const [maxSubmissions, setMaxSubmissions] = useState(problem.maxSubmissions);
+
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -44,34 +46,36 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
   const [tagInput, setTagInput] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState([]);
 
+  const submissionLimits = problem.submissionLimits || { min: 1, max: 1000 };
+
   const [initialState, setInitialState] = useState({
     name: problem.name,
     difficulty: problem.difficulty,
     tags: problem.tags || [],
     content: problem.content,
+    maxSubmissions: problem.maxSubmissions,
   });
 
-  // Reset form to initial state on cancel or successful save
   useEffect(() => {
     if (!editing && !loading) {
       setName(initialState.name);
       setDifficulty(initialState.difficulty);
       setTags(initialState.tags);
       setContent(initialState.content);
+      setMaxSubmissions(initialState.maxSubmissions);
     }
   }, [editing, loading, initialState]);
 
-  // Update problem handler
   const handleUpdate = async () => {
     setLoading(true);
     try {
       const response = await api.patch(
         `/contest/${contestId}/problems/${problem._id}`,
-        { name, difficulty, tags, content }
+        { name, difficulty, tags, content, maxSubmissions }
       );
       if (response.data) {
         toast?.("Problem updated successfully", "success");
-        setInitialState({ name, difficulty, tags, content });
+        setInitialState({ name, difficulty, tags, content, maxSubmissions });
         setEditing(false);
       } else {
         throw new Error("Update failed: No data received");
@@ -86,7 +90,6 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
     }
   };
 
-  // Delete problem handlers
   const handleDeleteClick = () => {
     if (isDeleting) return;
     setShowConfirmModal(true);
@@ -99,9 +102,7 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
       await api.delete(`/contest/${contestId}/problems/${problem._id}`);
       toast?.(`Problem "${problem.name}" deleted successfully`, "success");
       setShowConfirmModal(false);
-      if (onProblemDeleted) {
-        onProblemDeleted();
-      }
+      if (onProblemDeleted) onProblemDeleted();
     } catch (err) {
       console.error("Failed to delete problem:", err);
       toast?.(
@@ -114,16 +115,15 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
     }
   };
 
-  // Tag input handlers
   const handleTagInputChange = (e) => {
     const value = e.target.value;
     setTagInput(value);
     if (value.trim() && typeof Tags === "object") {
-      const lowerCaseValue = value.toLowerCase();
+      const lower = value.toLowerCase();
       const suggestions = Object.keys(Tags).filter(
-        (tagKey) =>
-          tagKey.toLowerCase().includes(lowerCaseValue) ||
-          (Tags[tagKey] && Tags[tagKey].toLowerCase().includes(lowerCaseValue))
+        (key) =>
+          key.toLowerCase().includes(lower) ||
+          (Tags[key] && Tags[key].toLowerCase().includes(lower))
       );
       setTagSuggestions(suggestions);
     } else {
@@ -131,22 +131,20 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
     }
   };
 
-  const handleAddTag = (tagKeyToAdd) => {
-    const trimmedTagKey = tagKeyToAdd?.trim();
-    if (!trimmedTagKey || !Tags || !Tags.hasOwnProperty(trimmedTagKey)) {
-      if (trimmedTagKey)
+  const handleAddTag = (tagKey) => {
+    const trimmedKey = tagKey?.trim();
+    if (!trimmedKey || !Tags?.hasOwnProperty(trimmedKey)) {
+      if (trimmedKey)
         toast?.(
-          `Tag "${trimmedTagKey}" is not a valid predefined tag.`,
+          `Tag "${trimmedKey}" is not a valid predefined tag.`,
           "warning"
         );
       setTagInput("");
       setTagSuggestions([]);
       return;
     }
-    const tagValueToAdd = Tags[trimmedTagKey];
-    if (tagValueToAdd && !tags.includes(tagValueToAdd)) {
-      setTags([...tags, tagValueToAdd]);
-    }
+    const value = Tags[trimmedKey];
+    if (value && !tags.includes(value)) setTags([...tags, value]);
     setTagInput("");
     setTagSuggestions([]);
   };
@@ -154,14 +152,14 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
   const handleTagKeyDown = (e) => {
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
-      const valueToMatch = tagInput.trim().toLowerCase();
-      const exactMatchKey = Object.keys(Tags || {}).find(
+      const inputLower = tagInput.trim().toLowerCase();
+      const exactMatch = Object.keys(Tags).find(
         (key) =>
-          key.toLowerCase() === valueToMatch ||
-          (Tags[key] && Tags[key].toLowerCase() === valueToMatch)
+          key.toLowerCase() === inputLower ||
+          (Tags[key] && Tags[key].toLowerCase() === inputLower)
       );
-      if (exactMatchKey) {
-        handleAddTag(exactMatchKey);
+      if (exactMatch) {
+        handleAddTag(exactMatch);
       } else if (tagSuggestions.length > 0) {
         handleAddTag(tagSuggestions[0]);
       } else {
@@ -175,23 +173,31 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
     }
   };
 
-  const handleRemoveTag = (tagValueToRemove) => {
-    setTags(tags.filter((tagValue) => tagValue !== tagValueToRemove));
+  const handleRemoveTag = (tagValue) => {
+    setTags(tags.filter((v) => v !== tagValue));
   };
 
-  // Toggle Edit/Cancel handler
   const handleToggleEdit = () => {
     if (editing) {
       setName(initialState.name);
       setDifficulty(initialState.difficulty);
       setTags(initialState.tags);
       setContent(initialState.content);
+      setMaxSubmissions(initialState.maxSubmissions);
       setTagInput("");
       setTagSuggestions([]);
     } else {
-      setInitialState({ name, difficulty, tags, content });
+      setInitialState({ name, difficulty, tags, content, maxSubmissions });
     }
     setEditing(!editing);
+  };
+
+  const handleMaxSubmissionsChange = (e) => {
+    let value = Number(e.target.value);
+    if (isNaN(value)) return;
+    if (value < submissionLimits.min) value = submissionLimits.min;
+    if (value > submissionLimits.max) value = submissionLimits.max;
+    setMaxSubmissions(value);
   };
 
   return (
@@ -237,7 +243,7 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
       </div>
 
       {/* Info Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-700 dark:text-gray-200">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-700 dark:text-gray-200">
         <p>
           <strong>ID:</strong> {problem._id}
         </p>
@@ -250,17 +256,32 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
               className="ml-1 p-1 rounded border dark:bg-gray-800 dark:border-gray-600"
               disabled={loading}
             >
-              {" "}
               {Object.values(Difficulty).map((level) => (
                 <option key={level} value={level}>
                   {level.charAt(0).toUpperCase() + level.slice(1)}
                 </option>
-              ))}{" "}
+              ))}
             </select>
           ) : (
             <span className={difficultyColor[difficulty] || "text-gray-500"}>
               {difficulty}
             </span>
+          )}
+        </p>
+        <p>
+          <strong>Max Submissions:</strong>{" "}
+          {editing ? (
+            <input
+              type="number"
+              value={maxSubmissions}
+              onChange={handleMaxSubmissionsChange}
+              min={submissionLimits.min}
+              max={submissionLimits.max}
+              className="ml-1 p-1 rounded border dark:bg-gray-800 dark:border-gray-600 w-20"
+              disabled={loading}
+            />
+          ) : (
+            <span className="ml-1">{maxSubmissions}</span>
           )}
         </p>
         <p>
@@ -273,7 +294,7 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
         </p>
       </div>
 
-      {/* Tags Section */}
+      {/* Tags */}
       <div className="relative">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Tags:
@@ -332,7 +353,7 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
         </div>
       </div>
 
-      {/* Description Section */}
+      {/* Description */}
       <div className="text-sm text-gray-700 dark:text-gray-300">
         <label className="font-semibold mb-1 block">Description:</label>
         {editing ? (

@@ -25,9 +25,13 @@ import { CacheableMemory } from 'cacheable';
 
 import { Logger } from '@nestjs/common';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { SubmissionModule } from './submission/submission.module';
+import { AppConfigModule } from './config/app-config.module';
 
 @Module({
   imports: [
+    AppConfigModule,
+
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -54,7 +58,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
         host: 'redis',
         port: 6379,
         maxRetriesPerRequest: null,
-      }
+      },
     }),
 
     CacheModule.registerAsync({
@@ -64,8 +68,12 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
         const memoryStore = new Keyv({ store: new CacheableMemory() });
 
         const logger = new Logger('CacheModule');
-        logger.log(`✅ Using Redis store: ${redisStore.opts.store?.constructor.name}`);
-        logger.log(`✅ Using Memory store: ${memoryStore.opts.store?.constructor.name}`);
+        logger.log(
+          `✅ Using Redis store: ${redisStore.opts.store?.constructor.name}`,
+        );
+        logger.log(
+          `✅ Using Memory store: ${memoryStore.opts.store?.constructor.name}`,
+        );
 
         return {
           stores: [redisStore, memoryStore],
@@ -74,8 +82,10 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
     }),
 
     LeaderboardModule,
+
+    SubmissionModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, RedisHealthIndicator],
 })
-export class AppModule { }
+export class AppModule {}

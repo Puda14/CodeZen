@@ -1134,6 +1134,23 @@ export class ContestService {
 
     return { message: `Leaderboard status updated to ${newStatus}` };
   }
+
+  async getContestProblems(
+    contestId: string,
+  ): Promise<{ _id: string; name: string }[]> {
+    const contest = await this.contestModel
+      .findById(contestId)
+      .select('problems')
+      .lean();
+
+    if (!contest) {
+      throw new NotFoundException(`Contest with ID ${contestId} not found`);
+    }
+
+    return this.problemService.getProblemsByIds(
+      contest.problems.map((id) => id.toString()),
+    );
+  }
 }
 
 interface ParticipantResult {

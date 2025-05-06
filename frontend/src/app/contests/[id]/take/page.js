@@ -4,10 +4,17 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "@/utils/coreApi";
-import { FiList, FiBarChart2, FiLoader, FiAlertTriangle } from "react-icons/fi";
+import {
+  FiList,
+  FiBarChart2,
+  FiLoader,
+  FiAlertTriangle,
+  FiCheckSquare,
+} from "react-icons/fi";
 import ProblemListTake from "@/components/contest/take/ProblemListTake";
 import CountdownTimer from "@/components/contest/take/CountdownTimer";
 import ParticipantLeaderboard from "@/components/contest/take/ParticipantLeaderboard";
+import UserSubmissionsList from "@/components/contest/take/UserSubmissionsList";
 import { useToast } from "@/context/ToastProvider";
 import { useContest } from "@/context/ContestContext";
 import { useAuth } from "@/context/AuthContext";
@@ -57,15 +64,13 @@ const ContestTakePage = () => {
           }
           if (err.response?.status === 404 || err.response?.status === 403) {
             showToast("Contest not found or access denied.", "error");
+            setTimeout(() => router.replace("/contests"), 2000);
           }
         } finally {
-          if (isActive) {
-            setLoadingData(false);
-          }
+          if (isActive) setLoadingData(false);
         }
       };
       fetchDetails();
-
       return () => {
         isActive = false;
         setIsInContest(false);
@@ -86,13 +91,30 @@ const ContestTakePage = () => {
     setIsInContest,
     setActiveContestId,
     showToast,
+    router,
   ]);
 
-  if (isLoadingAuth) {
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      event.returnValue =
+        "Bạn đang trong một cuộc thi. Rời khỏi trang có thể làm mất tiến trình.";
+      return event.returnValue;
+    };
+    if (!isLoadingAuth && isLoggedIn && contestDetails) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+    }
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isLoadingAuth, isLoggedIn, contestDetails]);
+
+  if (isLoadingAuth || loadingData) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-var(--header-height,8rem))]">
         <FiLoader className="animate-spin text-4xl text-blue-500" />
-        <span className="ml-3">Checking authentication...</span>
+        <span className="ml-3">
+          {isLoadingAuth
+            ? "Checking authentication..."
+            : "Loading contest data..."}
+        </span>
       </div>
     );
   }
@@ -101,14 +123,6 @@ const ContestTakePage = () => {
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-var(--header-height,8rem))] text-red-500 px-4">
         <FiAlertTriangle className="text-5xl mb-3" />
         <p className="text-center">Redirecting to login...</p>
-      </div>
-    );
-  }
-  if (loadingData) {
-    return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-var(--header-height,8rem))]">
-        <FiLoader className="animate-spin text-4xl text-blue-500" />
-        <span className="ml-3">Loading contest data...</span>
       </div>
     );
   }
@@ -150,23 +164,37 @@ const ContestTakePage = () => {
                 onClick={() => setActiveTab("Problems")}
                 className={`inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group ${
                   activeTab === "Problems"
-                    ? "text-blue-600 border-blue-600 dark:text-blue-500 dark:border-blue-500 active font-semibold" // Added font-semibold
+                    ? "text-blue-600 border-blue-600 dark:text-blue-500 dark:border-blue-500 active font-semibold"
                     : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 dark:hover:border-gray-600"
                 }`}
               >
                 <FiList className="me-2" /> Problems
               </button>
             </li>
+
             <li className="me-2">
               <button
                 onClick={() => setActiveTab("Leaderboard")}
                 className={`inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group ${
                   activeTab === "Leaderboard"
-                    ? "text-blue-600 border-blue-600 dark:text-blue-500 dark:border-blue-500 active font-semibold" // Added font-semibold
+                    ? "text-blue-600 border-blue-600 dark:text-blue-500 dark:border-blue-500 active font-semibold"
                     : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 dark:hover:border-gray-600"
                 }`}
               >
                 <FiBarChart2 className="me-2" /> Leaderboard
+              </button>
+            </li>
+
+            <li className="me-2">
+              <button
+                onClick={() => setActiveTab("Submissions")}
+                className={`inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg group ${
+                  activeTab === "Submissions"
+                    ? "text-blue-600 border-blue-600 dark:text-blue-500 dark:border-blue-500 active font-semibold"
+                    : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <FiCheckSquare className="me-2" /> Submissions
               </button>
             </li>
           </ul>
@@ -184,7 +212,15 @@ const ContestTakePage = () => {
         )}
         {activeTab === "Leaderboard" && (
           <div>
-            <ParticipantLeaderboard contestId={contestId} />
+            <ParticipantLeaderboard
+              contestId={contestId}
+              initialLeaderboardStatus={contestDetails?.leaderboardStatus}
+            />
+          </div>
+        )}
+        {activeTab === "Submissions" && (
+          <div>
+            <UserSubmissionsList contestId={contestId} />
           </div>
         )}
       </div>

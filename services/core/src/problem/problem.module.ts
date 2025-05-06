@@ -4,6 +4,7 @@ import { ProblemService } from './problem.service';
 import { Problem, ProblemSchema } from './problem.schema';
 import { TestcaseModule } from '../testcase/testcase.module';
 import { ProblemController } from './problem.controller';
+
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Problem.name, schema: ProblemSchema }]),
@@ -13,4 +14,4 @@ import { ProblemController } from './problem.controller';
   exports: [ProblemService],
   controllers: [ProblemController],
 })
-export class ProblemModule { }
+export class ProblemModule {}

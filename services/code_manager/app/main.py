@@ -2,12 +2,13 @@ import os
 import uuid
 import time
 import logging
-from app.services.redis_utils import get_contest_data, is_user_approved, get_problem_testcases
+from app.services.redis_utils import get_contest_data, is_user_approved, get_problem_testcases, get_problem_max_submissions
 import json
 from fastapi import FastAPI, HTTPException, Depends  # type: ignore
 from app.auth import jwt_auth_dependency
 from app.models.rabbitmq import RabbitMQClient
 from app.models.request import CodeExecutionRequest, Task
+import requests
 
 app = FastAPI()
 rabbitmq = RabbitMQClient()
@@ -74,9 +75,6 @@ async def evaluate_testcases_endpoint(
   request: CodeExecutionRequest,
   user=Depends(jwt_auth_dependency),
 ):
-  """
-  API endpoint to evaluate test cases.
-  """
   request.userId = user["_id"]
 
   if not request.contestId or not request.problemId:
@@ -87,8 +85,30 @@ async def evaluate_testcases_endpoint(
   if not is_user_approved(contest, request.userId):
     raise HTTPException(status_code=403, detail="User is not approved to submit in this contest.")
 
-  testcases = get_problem_testcases(contest, request.problemId)
+  max_submissions = get_problem_max_submissions(contest, request.problemId)
 
+  try:
+    core_url = os.getenv("CORE_SERVICE_URL", "http://core-service:8001")
+    resp = requests.get(
+      f"{core_url}/submission/count",
+      params={
+        "userId": request.userId,
+        "contestId": request.contestId,
+        "problemId": request.problemId,
+      },
+      headers={"x-internal-api-key": os.getenv("INTERNAL_API_KEY")}
+    )
+    resp.raise_for_status()
+    attempt_number = resp.json()["count"]
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=f"Failed to check submission count: {e}")
+
+  print(f"submissions: {attempt_number}/{max_submissions}")
+
+  if attempt_number >= max_submissions:
+    raise HTTPException(status_code=403, detail=f"Maximum submission limit ({max_submissions}) reached.")
+
+  testcases = get_problem_testcases(contest, request.problemId)
   request.testcases = testcases
 
   return handle_task(

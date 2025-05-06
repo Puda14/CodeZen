@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import os
 from app.models.rabbitmq import RabbitMQClient
 from app.models.request import Task, CodeExecutionRequest
 from app.services.code_executor import execute_code
@@ -20,19 +21,30 @@ class Worker:
 
   def update_leaderboard(self, contest_id, problem_id, user_id, score):
     try:
-      url = "http://nginx/api/core/leaderboard/update"
+      url = "http://core-service:8001/leaderboard/update"
+      headers = {"x-internal-api-key": os.environ.get("INTERNAL_API_KEY")}
       payload = {
         "contestId": contest_id,
         "problemId": problem_id,
         "userId": user_id,
         "score": score
       }
-      response = requests.post(url, json=payload, timeout=5)
+      response = requests.post(url, json=payload, headers=headers, timeout=5)
       response.raise_for_status()
       logging.info(f"✅ Leaderboard updated for user {user_id} in contest {contest_id}")
     except Exception as e:
       logging.error(f"❌ Failed to update leaderboard: {e}")
-      
+
+  def submit_to_core(self, submission_data):
+    try:
+      url = "http://core-service:8001/submission"
+      headers = {"x-internal-api-key": os.environ.get("INTERNAL_API_KEY")}
+      response = requests.post(url, json=submission_data, headers=headers, timeout=5)
+      response.raise_for_status()
+      logging.info(f"✅ Submission saved for user {submission_data['userId']}")
+    except Exception as e:
+      logging.error(f"❌ Failed to save submission: {e}")
+
   async def process_task(self, task):
     """
     Process a single task received from RabbitMQ.
@@ -70,6 +82,20 @@ class Worker:
           )
         except Exception as e:
           logging.warning(f"Leaderboard update skipped: {e}")
+
+        try:
+          submission_data = {
+            "userId": data.userId,
+            "contest": data.contestId,
+            "problem": data.problemId,
+            "code": data.code,
+            "language": data.processor,
+            "score": result["summary"]["total_score"],
+            "testcaseResults": result["results"],
+          }
+          self.submit_to_core(submission_data)
+        except Exception as e:
+          logging.warning(f"Submit to core skipped: {e}")
 
       else:
         logging.warning(f"Unknown task type: {task_type}")

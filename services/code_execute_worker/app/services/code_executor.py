@@ -13,7 +13,7 @@ async def execute_code(request):
   """
   if request.processor not in PROCESSOR_CONFIG:
     raise UnsupportedLanguageException(request.processor)
-  
+
   user_dir = save_code_and_input(
     code=request.code,
     input_data=request.input_data,
@@ -21,8 +21,15 @@ async def execute_code(request):
   )
 
   try:
-    result = run_code_in_docker(user_dir=user_dir, processor=request.processor)
-    return {"status": "success", "output": result}
+    logs_decoded, elapsed_time = run_code_in_docker(
+      user_dir=user_dir,
+      processor=request.processor
+    )
+    return {
+      "status": "success",
+      "output": logs_decoded,
+      "execution_time": elapsed_time,
+    }
   except CodeExecutionException as e:
     return {"status": "error", "error_message": e.detail}
   finally:

@@ -15,6 +15,7 @@ import { LeaderboardCacheService } from './cache/leaderboard.cache.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InitLeaderboardDto } from './dto/leaderboard.dto';
 import { LeaderboardStatus } from '../common/enums/contest.enum';
+import { InternalApiGuard } from '../auth/internal-api.guard';
 
 @Controller('leaderboard')
 export class LeaderboardController {
@@ -34,6 +35,7 @@ export class LeaderboardController {
   }
 
   @Post('update')
+  @UseGuards(InternalApiGuard)
   @HttpCode(200)
   async updateScore(
     @Body()
