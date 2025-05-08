@@ -1,0 +1,11 @@
+#Build
+sudo docker build -f app/docker/Dockerfile.python -t codezen/python .
+sudo docker build -f app/docker/Dockerfile.gcc -t codezen/gcc .
+
+#Tag
+docker tag codezen/python puda14/codezen-python:latest
+docker tag codezen/gcc puda14/codezen-gcc:latest
+
+#Push
+docker push puda14/codezen-python:latest
+docker push puda14/codezen-gcc:latest

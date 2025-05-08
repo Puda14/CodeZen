@@ -5,15 +5,17 @@ import {
   IsArray,
   ValidateNested,
   IsOptional,
+  IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SubmissionStatus } from '../../common/enums/submission.enum';
 
 class TestcaseResultDto {
   @IsString()
   test_case: string;
 
-  @IsString()
-  status: string;
+  @IsEnum(SubmissionStatus)
+  status: SubmissionStatus;
 
   @IsString()
   output: string;
@@ -32,6 +34,10 @@ class TestcaseResultDto {
   @IsOptional()
   @IsNumber()
   execution_time?: number;
+
+  @IsOptional()
+  @IsNumber()
+  exit_code?: number;
 }
 
 export class SubmissionDto {

@@ -6,6 +6,10 @@ from app.models.request import Task, CodeExecutionRequest
 from app.services.code_executor import execute_code
 from app.services.code_evaluate import evaluate_code
 import requests
+from app.exceptions import (
+  CompilationErrorException,
+  RuntimeErrorException,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -70,32 +74,44 @@ class Worker:
 
       elif task_type == "evaluate":
         logging.info(f"Processing code evaluation task: {data}")
-        result = await evaluate_code(data)
-        response["result"] = result
-
         try:
+          result = await evaluate_code(data)
+          response["result"] = result
+
+          score = result["summary"]["total_score"]
+          # status = "success"
+
           self.update_leaderboard(
             contest_id=data.contestId,
             problem_id=data.problemId,
             user_id=data.userId,
-            score=result["summary"]["total_score"]
+            score=score
           )
-        except Exception as e:
-          logging.warning(f"Leaderboard update skipped: {e}")
 
-        try:
-          submission_data = {
-            "userId": data.userId,
-            "contest": data.contestId,
-            "problem": data.problemId,
-            "code": data.code,
-            "language": data.processor,
-            "score": result["summary"]["total_score"],
-            "testcaseResults": result["results"],
-          }
-          self.submit_to_core(submission_data)
         except Exception as e:
-          logging.warning(f"Submit to core skipped: {e}")
+          logging.warning(f"General error: {str(e)}")
+          result = {
+            "results": [],
+            "summary": {
+              "passed": 0,
+              "failed": len(data.testcases) if data.testcases else 0,
+              "total": len(data.testcases) if data.testcases else 0,
+              "total_score": 0
+            },
+          }
+          response["result"] = result
+          score = 0
+
+        submission_data = {
+          "userId": data.userId,
+          "contest": data.contestId,
+          "problem": data.problemId,
+          "code": data.code,
+          "language": data.processor,
+          "score": score,
+          "testcaseResults": result.get("results")
+        }
+        self.submit_to_core(submission_data)
 
       else:
         logging.warning(f"Unknown task type: {task_type}")

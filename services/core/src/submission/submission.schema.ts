@@ -1,8 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { User } from '../user/user.schema';
-import { Contest } from '../contest/contest.schema';
-import { Problem } from '../problem/problem.schema';
+import { SubmissionStatus } from '../common/enums/submission.enum';
 
 export type SubmissionDocument = Submission & Document & { _id: string };
 
@@ -36,6 +34,7 @@ export class Submission {
         score: Number,
         error_message: String,
         execution_time: Number,
+        exit_code: Number,
       },
     ],
     default: [],
@@ -48,6 +47,7 @@ export class Submission {
     score: number;
     error_message?: string;
     execution_time?: number;
+    exit_code?: number;
   }[];
 
   @Prop({ required: true })

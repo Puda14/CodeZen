@@ -1,11 +1,22 @@
 import os
-import json
+import uuid
 import logging
 
-from app.services.file_manager import save_code_and_input
-from app.services.docker_handler import run_code_in_docker
+from app.services.file_manager import (
+  save_code, save_input, create_user_workdir
+)
+from app.services.docker_handler import (
+  run_code_in_docker, compile_code_in_docker
+)
 from app.processor_config import PROCESSOR_CONFIG
-from app.exceptions import CodeExecutionException, UnsupportedLanguageException
+from app.exceptions import (
+  UnsupportedLanguageException,
+  CompilationErrorException,
+  RuntimeErrorException,
+  TimeLimitExceededException,
+  MemoryLimitExceededException,
+  SegmentationFaultException
+)
 
 async def evaluate_code(request):
   if request.processor not in PROCESSOR_CONFIG:
@@ -14,6 +25,32 @@ async def evaluate_code(request):
   testcases = getattr(request, "testcases", None)
   if not testcases or not isinstance(testcases, list):
     raise ValueError("No testcases provided in request.")
+
+  user_dir = create_user_workdir()
+  save_code(request.code, request.processor, user_dir)
+
+  config = PROCESSOR_CONFIG[request.processor]
+  if config.get("needs_compile", False):
+    try:
+      compile_code_in_docker(user_dir, request.processor)
+    except CompilationErrorException as e:
+      results = [{
+        "test_case": f"test{idx+1:02d}",
+        "status": "compile_error",
+        "output": "",
+        "error_message": e.detail,
+        "exit_code": getattr(e, "exit_code", None),
+        "score": 0
+      } for idx in range(len(testcases))]
+      return {
+        "results": results,
+        "summary": {
+          "passed": 0,
+          "failed": len(testcases),
+          "total": len(testcases),
+          "total_score": 0
+        }
+      }
 
   results = []
   passed_count = 0
@@ -27,14 +64,12 @@ async def evaluate_code(request):
     score = testcase.get("score", 0)
     is_public = testcase.get("isPublic", False)
 
-    user_dir = save_code_and_input(
-      code=request.code,
-      input_data=input_data,
-      processor=request.processor
-    )
+    save_input(input_data, user_dir)
 
     try:
-      result_raw, execution_time = run_code_in_docker(user_dir=user_dir, processor=request.processor)
+      result_raw, execution_time = run_code_in_docker(
+        user_dir=user_dir, processor=request.processor
+      )
       result = result_raw.rstrip(' \n\r')
 
       if result == expected_result:
@@ -44,6 +79,7 @@ async def evaluate_code(request):
           "output": result,
           "score": score,
           "execution_time": execution_time,
+          "exit_code": 0,
         })
         passed_count += 1
         total_score += score
@@ -54,17 +90,50 @@ async def evaluate_code(request):
           "output": result,
           "score": 0,
           "execution_time": execution_time,
+          "exit_code": 0,
         }
         if is_public:
           res["expected"] = expected_result
         results.append(res)
         failed_count += 1
 
-    except CodeExecutionException as e:
+    except RuntimeErrorException as e:
       results.append({
         "test_case": test_id,
-        "status": "error",
+        "status": "runtime_error",
+        "output": "",
         "error_message": e.detail,
+        "exit_code": getattr(e, "exit_code", None),
+        "score": 0
+      })
+      failed_count += 1
+    except TimeLimitExceededException as e:
+      results.append({
+        "test_case": test_id,
+        "status": "tle",
+        "output": "",
+        "error_message": e.detail,
+        "exit_code": getattr(e, "exit_code", None),
+        "score": 0
+      })
+      failed_count += 1
+    except MemoryLimitExceededException as e:
+      results.append({
+        "test_case": test_id,
+        "status": "mle",
+        "output": "",
+        "error_message": e.detail,
+        "exit_code": getattr(e, "exit_code", None),
+        "score": 0
+      })
+      failed_count += 1
+    except SegmentationFaultException as e:
+      results.append({
+        "test_case": test_id,
+        "status": "segmentation_fault",
+        "output": "",
+        "error_message": e.detail,
+        "exit_code": getattr(e, "exit_code", None),
         "score": 0
       })
       failed_count += 1
@@ -72,18 +141,24 @@ async def evaluate_code(request):
       results.append({
         "test_case": test_id,
         "status": "error",
+        "output": "",
         "error_message": str(e),
+        "exit_code": None,
         "score": 0
       })
       failed_count += 1
-    finally:
-      if os.path.exists(user_dir):
-        for root, dirs, files in os.walk(user_dir, topdown=False):
-          for name in files:
-            os.remove(os.path.join(root, name))
-          for name in dirs:
-            os.rmdir(os.path.join(root, name))
-        os.rmdir(user_dir)
+
+  try:
+    for root, dirs, files in os.walk(user_dir, topdown=False):
+      for name in files:
+        os.remove(os.path.join(root, name))
+      for name in dirs:
+        os.rmdir(os.path.join(root, name))
+    os.rmdir(user_dir)
+  except Exception as cleanup_err:
+    logging.warning(
+      f"Failed to clean up directory {user_dir}: {cleanup_err}"
+    )
 
   return {
     "results": results,
