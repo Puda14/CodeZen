@@ -1,4 +1,3 @@
-// app/contests/[id]/problem/[problemId]/page.js
 "use client";
 
 import { useState, useEffect } from "react";
@@ -55,8 +54,8 @@ const ContestProblemDetailPage = () => {
   const [isLoadingEndTime, setIsLoadingEndTime] = useState(true);
 
   const {
-    language,
-    setLanguage,
+    selectedKey,
+    setSelectedKey,
     code,
     setCode,
     inputData,
@@ -244,11 +243,10 @@ const ContestProblemDetailPage = () => {
         <div className="lg:w-5/12 xl:w-6/12 flex flex-col space-y-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-1">
             <MonacoCodeEditor
-              height="50vh"
-              language={language}
-              setLanguage={setLanguage}
-              value={code}
+              code={code}
               onChange={setCode}
+              selectedKey={selectedKey}
+              setSelectedKey={setSelectedKey}
             />
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-4">
@@ -260,8 +258,8 @@ const ContestProblemDetailPage = () => {
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-4">
             <ExecuteButtons
-              language={language}
-              setLanguage={setLanguage}
+              selectedKey={selectedKey}
+              setSelectedKey={setSelectedKey}
               handleExecute={handleExecute}
               handleContestSubmit={handleContestSubmit}
               isLoadingRun={isLoadingRun}

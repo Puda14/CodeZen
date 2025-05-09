@@ -1,10 +1,10 @@
-// hooks/useCodeExecution.js
 import { useState } from "react";
 import codeManagerApi from "@/utils/codeManagerApi";
 import { useToast } from "@/context/ToastProvider";
+import { supportedProcessors } from "@/config/processorConfig";
 
 const useCodeExecution = (contestId = null, problemId = null) => {
-  const [language, setLanguage] = useState("cpp");
+  const [selectedKey, setSelectedKey] = useState("CPP14");
   const [code, setCode] = useState("");
   const [inputData, setInputData] = useState("");
   const [output, setOutput] = useState("");
@@ -13,8 +13,10 @@ const useCodeExecution = (contestId = null, problemId = null) => {
   const [isLoadingSubmit, setIsLoadingSubmit] = useState(false);
   const { showToast } = useToast();
 
+  const processor = supportedProcessors[selectedKey].processor;
+
   const handleExecute = async () => {
-    const payload = { processor: language, code, input_data: inputData };
+    const payload = { processor, code, input_data: inputData };
     setIsLoadingRun(true);
     setOutput("Executing...");
     setSubmissionResult(null);
@@ -54,7 +56,7 @@ const useCodeExecution = (contestId = null, problemId = null) => {
       return;
     }
     const payload = {
-      processor: language,
+      processor,
       code,
       contestId,
       problemId,
@@ -117,8 +119,8 @@ const useCodeExecution = (contestId = null, problemId = null) => {
   };
 
   return {
-    language,
-    setLanguage,
+    selectedKey,
+    setSelectedKey,
     code,
     setCode,
     inputData,

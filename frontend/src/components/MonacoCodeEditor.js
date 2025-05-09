@@ -1,10 +1,9 @@
-"use client";
-
 import React from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "../context/ThemeContext";
 import { handleFileUpload } from "../utils/fileUtils";
 import { FiUpload } from "react-icons/fi";
+import { supportedProcessors } from "@/config/processorConfig";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -15,15 +14,17 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ),
 });
 
+const DEFAULT_KEY = "CPP14";
+
 const MonacoCodeEditor = ({
   code,
   onChange: setCodeFromHook,
-  language,
-  setLanguage,
+  selectedKey,
+  setSelectedKey,
 }) => {
   const { theme } = useTheme();
 
-  const handleEditorChange = (value, event) => {
+  const handleEditorChange = (value) => {
     if (setCodeFromHook) {
       setCodeFromHook(value);
     }
@@ -38,6 +39,10 @@ const MonacoCodeEditor = ({
     }
   };
 
+  const currentConfig =
+    supportedProcessors[selectedKey] || supportedProcessors[DEFAULT_KEY];
+  const editorLanguage = currentConfig?.language || "cpp";
+
   return (
     <div className="p-1 w-full">
       <div className="mb-2 flex justify-start items-center">
@@ -51,15 +56,14 @@ const MonacoCodeEditor = ({
           id="language-select"
           aria-label="Select Language"
           className="w-auto p-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
+          value={selectedKey || DEFAULT_KEY}
+          onChange={(e) => setSelectedKey(e.target.value)}
         >
-          <option value="cpp">C++</option>
-          <option value="java">Java</option>
-          <option value="python">Python</option>
-          <option value="javascript">JavaScript</option>
-          <option value="rust">Rust</option>
-          <option value="go">Go</option>
+          {Object.entries(supportedProcessors).map(([key]) => (
+            <option key={key} value={key}>
+              {key}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -67,7 +71,7 @@ const MonacoCodeEditor = ({
         <MonacoEditor
           height="50vh"
           theme={theme === "dark" ? "vs-dark" : "vs-light"}
-          language={language}
+          language={editorLanguage}
           value={code}
           onChange={handleEditorChange}
           options={{
