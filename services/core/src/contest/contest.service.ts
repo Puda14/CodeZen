@@ -595,6 +595,10 @@ export class ContestService {
 
       await session.commitTransaction();
 
+      if (contest.status === ContestStatus.ONGOING) {
+        await this.updateContestCache(contestId);
+      }
+
       return {
         message: 'Problem added to contest successfully',
         problemId: problem._id.toString(),
@@ -639,6 +643,10 @@ export class ContestService {
     await contest.save();
 
     await this.problemService.deleteProblem(problemId);
+
+    if (contest.status === ContestStatus.ONGOING) {
+      await this.updateContestCache(contestId);
+    }
   }
 
   async addTestcasesToProblem(
@@ -678,6 +686,10 @@ export class ContestService {
       problemId,
       createdTestcases.map((tc) => tc._id),
     );
+
+    if (contest.status === ContestStatus.ONGOING) {
+      await this.updateContestCache(contestId);
+    }
 
     return {
       message: 'Testcases added successfully',
@@ -725,6 +737,10 @@ export class ContestService {
     await this.testcaseService.deleteTestcases(
       testcaseIds.map((id) => new Types.ObjectId(id)),
     );
+
+    if (contest.status === ContestStatus.ONGOING) {
+      await this.updateContestCache(contestId);
+    }
 
     return { message: 'Testcases removed successfully' };
   }
