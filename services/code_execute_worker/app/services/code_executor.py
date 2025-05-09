@@ -26,6 +26,7 @@ async def execute_code(request):
   )
 
   config = PROCESSOR_CONFIG[request.processor]
+  timeout_sec = 3
 
   try:
     if config.get("needs_compile", False):
@@ -40,7 +41,8 @@ async def execute_code(request):
 
     logs_decoded, elapsed_time = run_code_in_docker(
       user_dir=user_dir,
-      processor=request.processor
+      processor=request.processor,
+      timeout_sec=timeout_sec
     )
 
     return {

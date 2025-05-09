@@ -63,12 +63,13 @@ async def evaluate_code(request):
     expected_result = testcase.get("output", "").rstrip(' \n\r')
     score = testcase.get("score", 0)
     is_public = testcase.get("isPublic", False)
+    timeout_sec = testcase.get("timeout", 1)
 
     save_input(input_data, user_dir)
 
     try:
       result_raw, execution_time = run_code_in_docker(
-        user_dir=user_dir, processor=request.processor
+        user_dir=user_dir, processor=request.processor, timeout_sec=timeout_sec
       )
       result = result_raw.rstrip(' \n\r')
 

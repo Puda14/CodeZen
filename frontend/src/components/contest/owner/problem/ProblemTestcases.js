@@ -16,6 +16,7 @@ import { useToast } from "@/context/ToastProvider";
 import SingleTestcase from "./SingleTestcase";
 import AddTestcasesModal from "./AddTestcasesModal";
 import ConfirmModal from "@/components/common/ConfirmModal";
+import { testcaseTimeoutLimits } from "@/config/contestConfig";
 
 const ProblemTestcases = ({ problemId }) => {
   const { id: contestId } = useParams();
@@ -44,9 +45,15 @@ const ProblemTestcases = ({ problemId }) => {
     try {
       const apiUrl = `/contest/${contestId}/problems/${problemId}/owner`;
       const response = await api.get(apiUrl);
-      const fetchedTestcases = response.data?.testcases || [];
+      const fetchedTestcases = (response.data?.testcases || []).map((tc) => ({
+        ...tc,
+        timeout:
+          tc.timeout === undefined || tc.timeout === null
+            ? testcaseTimeoutLimits.default
+            : tc.timeout,
+      }));
       setTestcases(fetchedTestcases);
-      setLastSavedTestcases(fetchedTestcases);
+      setLastSavedTestcases(JSON.parse(JSON.stringify(fetchedTestcases)));
     } catch (err) {
       console.error("Failed to fetch testcases:", err);
       const errorMsg =
@@ -68,7 +75,33 @@ const ProblemTestcases = ({ problemId }) => {
 
   const handleTestcaseChange = useCallback((index, field, value) => {
     setTestcases((current) =>
-      current.map((tc, idx) => (idx === index ? { ...tc, [field]: value } : tc))
+      current.map((tc, idx) => {
+        if (idx === index) {
+          let processedValue = value;
+          if (field === "score") {
+            const numValue = parseInt(value, 10);
+            processedValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
+          } else if (field === "isPublic") {
+            processedValue = value === "true" || value === true;
+          } else if (field === "timeout") {
+            if (value !== "") {
+              const numValue = parseInt(value, 10);
+              if (isNaN(numValue)) {
+                return tc;
+              }
+              if (numValue < testcaseTimeoutLimits.min) {
+                processedValue = testcaseTimeoutLimits.min;
+              } else if (numValue > testcaseTimeoutLimits.max) {
+                processedValue = testcaseTimeoutLimits.max;
+              } else {
+                processedValue = numValue;
+              }
+            }
+          }
+          return { ...tc, [field]: processedValue };
+        }
+        return tc;
+      })
     );
   }, []);
 
@@ -76,22 +109,30 @@ const ProblemTestcases = ({ problemId }) => {
     (currentTc, index) => {
       const originalTc = lastSavedTestcases[index];
       if (!originalTc) return true;
+
       const currentIsPublic =
-        currentTc.isPublic === "true" || currentTc.isPublic === true;
+        currentTc.isPublic === true || String(currentTc.isPublic) === "true";
       const originalIsPublic =
-        originalTc.isPublic === "true" || originalTc.isPublic === true;
+        originalTc.isPublic === true || String(originalTc.isPublic) === "true";
+
+      const currentTimeout =
+        currentTc.timeout === "" ? "" : Number(currentTc.timeout);
+      const originalTimeout =
+        originalTc.timeout === "" ? "" : Number(originalTc.timeout);
+
       return (
         Number(currentTc.score) !== Number(originalTc.score) ||
         currentIsPublic !== originalIsPublic ||
         (currentTc.input ?? "") !== (originalTc.input ?? "") ||
-        (currentTc.output ?? "") !== (originalTc.output ?? "")
+        (currentTc.output ?? "") !== (originalTc.output ?? "") ||
+        currentTimeout !== originalTimeout
       );
     },
     [lastSavedTestcases]
   );
 
   const cancelEditing = () => {
-    setTestcases([...lastSavedTestcases]);
+    setTestcases(JSON.parse(JSON.stringify(lastSavedTestcases)));
     setIsEditing(false);
   };
 
@@ -101,17 +142,56 @@ const ProblemTestcases = ({ problemId }) => {
       return;
     }
 
+    for (const [index, tc] of testcases.entries()) {
+      const scoreVal = parseInt(String(tc.score), 10);
+      if (isNaN(scoreVal) || scoreVal < 0) {
+        toast?.(
+          `Score for testcase #${
+            index + 1
+          } (original index) must be a non-negative number.`,
+          "error"
+        );
+        return;
+      }
+      const timeoutStr = String(tc.timeout).trim();
+      if (timeoutStr === "") {
+        toast?.(
+          `Timeout for testcase #${
+            index + 1
+          } (original index) cannot be empty.`,
+          "error"
+        );
+        return;
+      }
+      const timeoutVal = parseInt(timeoutStr, 10);
+      if (
+        isNaN(timeoutVal) ||
+        timeoutVal < testcaseTimeoutLimits.min ||
+        timeoutVal > testcaseTimeoutLimits.max
+      ) {
+        toast?.(
+          `Timeout for testcase #${
+            index + 1
+          } (original index) must be a number between ${
+            testcaseTimeoutLimits.min
+          } and ${testcaseTimeoutLimits.max} seconds.`,
+          "error"
+        );
+        return;
+      }
+    }
+
     const changedTestcasesPayload = testcases
       .map((tc, index) => ({ ...tc, originalIndex: index }))
-      .filter((tc) => hasChanges(tc, tc.originalIndex))
+      .filter((tc) => tc._id && hasChanges(tc, tc.originalIndex))
       .map((tc) => ({
-        id: tc._id || tc.id,
+        id: tc._id,
         score: Number(tc.score) || 0,
         input: tc.input ?? "",
         output: tc.output ?? "",
-        isPublic: tc.isPublic === "true" || tc.isPublic === true,
-      }))
-      .filter((payload) => payload.id);
+        isPublic: tc.isPublic === true || String(tc.isPublic) === "true",
+        timeout: parseInt(String(tc.timeout), 10),
+      }));
 
     if (changedTestcasesPayload.length === 0) {
       toast?.("No changes detected to save.", "info");
@@ -190,11 +270,10 @@ const ProblemTestcases = ({ problemId }) => {
     setShowDeleteConfirmModal(true);
   };
 
-  // --- Render Logic ---
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-4">
-        <FiLoader className="animate-spin text-blue-500" />
+        <FiLoader className="animate-spin text-blue-500 text-2xl" />
         <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
           Loading testcases...
         </span>
@@ -229,19 +308,17 @@ const ProblemTestcases = ({ problemId }) => {
               {isSaving && <FiLoader className="animate-spin text-blue-500" />}
               <button
                 onClick={handleUpdateTestcase}
-                className="text-sm text-blue-600 hover:underline disabled:opacity-50 flex items-center gap-1"
+                className="text-sm text-blue-600 hover:underline disabled:opacity-50 flex items-center gap-1 px-3 py-1 rounded-md border border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/20"
                 disabled={isSaving}
               >
-                {" "}
-                <FiSave /> Save{" "}
+                <FiSave /> Save
               </button>
               <button
                 onClick={cancelEditing}
-                className="text-sm text-gray-600 hover:underline disabled:opacity-50 flex items-center gap-1"
+                className="text-sm text-gray-600 hover:underline disabled:opacity-50 flex items-center gap-1 px-3 py-1 rounded-md border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                 disabled={isSaving}
               >
-                {" "}
-                <FiX /> Cancel{" "}
+                <FiX /> Cancel
               </button>
             </>
           ) : isDeleteMode ? (
@@ -249,43 +326,40 @@ const ProblemTestcases = ({ problemId }) => {
               {isDeleting && <FiLoader className="animate-spin text-red-500" />}
               <button
                 onClick={handleDeleteSelectedClick}
-                className="text-sm text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                className="text-sm text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 px-3 py-1 rounded-md border border-red-500 hover:bg-red-50 dark:hover:bg-red-500/20"
                 disabled={isDeleting || selectedIds.size === 0}
               >
-                {" "}
-                <FiTrash2 /> Delete ({selectedIds.size}){" "}
+                <FiTrash2 /> Delete ({selectedIds.size})
               </button>
               <button
                 onClick={toggleDeleteMode}
-                className="text-sm text-gray-600 hover:underline disabled:opacity-50 flex items-center gap-1"
+                className="text-sm text-gray-600 hover:underline disabled:opacity-50 flex items-center gap-1 px-3 py-1 rounded-md border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                 disabled={isDeleting}
               >
-                {" "}
-                <FiX /> Cancel{" "}
+                <FiX /> Cancel
               </button>
             </>
           ) : (
             <>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="text-sm text-green-600 hover:underline flex items-center gap-1"
+                className="text-sm text-green-600 hover:underline flex items-center gap-1 px-3 py-1 rounded-md border border-green-500 hover:bg-green-50 dark:hover:bg-green-500/20"
               >
-                {" "}
-                <FiPlus /> Add{" "}
+                <FiPlus /> Add
               </button>
               <button
                 onClick={toggleDeleteMode}
-                className="text-sm text-red-600 hover:underline flex items-center gap-1"
+                className="text-sm text-red-600 hover:underline flex items-center gap-1 px-3 py-1 rounded-md border border-red-500 hover:bg-red-50 dark:hover:bg-red-500/20"
+                disabled={testcases.length === 0}
               >
-                {" "}
-                <FiTrash2 /> Delete{" "}
+                <FiTrash2 /> Delete
               </button>
               <button
                 onClick={() => setIsEditing(true)}
-                className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                className="text-sm text-blue-600 hover:underline flex items-center gap-1 px-3 py-1 rounded-md border border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/20"
+                disabled={testcases.length === 0}
               >
-                {" "}
-                <FiEdit3 /> Edit{" "}
+                <FiEdit3 /> Edit
               </button>
             </>
           )}
@@ -312,7 +386,7 @@ const ProblemTestcases = ({ problemId }) => {
           );
         })}
         {testcases.length === 0 && !isLoading && (
-          <p className="text-gray-500 dark:text-gray-400 italic text-sm">
+          <p className="text-gray-500 dark:text-gray-400 italic text-sm p-4 text-center">
             No testcases available for this problem. Click 'Add' to create some.
           </p>
         )}
@@ -328,9 +402,14 @@ const ProblemTestcases = ({ problemId }) => {
 
       {showDeleteConfirmModal && (
         <ConfirmModal
+          isOpen={showDeleteConfirmModal}
+          title="Confirm Deletion"
           message={`Are you sure you want to delete ${selectedIds.size} selected testcase(s)? This action cannot be undone.`}
           onConfirm={handleConfirmDeleteSelected}
           onCancel={() => setShowDeleteConfirmModal(false)}
+          confirmText="Delete"
+          isDanger={true}
+          isLoading={isDeleting}
         />
       )}
     </div>

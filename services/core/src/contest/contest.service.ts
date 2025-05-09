@@ -28,6 +28,7 @@ import { LeaderboardService } from '../leaderboard/leaderboard.service';
 import { UserDocument } from 'src/user/user.schema';
 import { InitLeaderboardDto } from '../leaderboard/dto/leaderboard.dto';
 import { LeaderboardStatus } from '../common/enums/contest.enum';
+import { time } from 'console';
 
 @Injectable()
 export class ContestService {
@@ -948,6 +949,7 @@ export class ContestService {
                 input: doc.input,
                 output: doc.output,
                 isPublic: true,
+                timeout: doc.timeout,
               };
             } else {
               return {
@@ -956,6 +958,7 @@ export class ContestService {
                 input: doc.input,
                 output: doc.output,
                 isPublic: false,
+                timeout: doc.timeout,
               };
             }
           },
@@ -999,10 +1002,12 @@ export class ContestService {
                   input: tc.input,
                   output: tc.output,
                   isPublic: true,
+                  timeout: tc.timeout,
                 }
               : {
                   _id: tc._id,
                   score: tc.score,
+                  timeout: tc.timeout,
                 },
           ) || [],
       })),

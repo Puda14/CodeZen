@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { FiPlus, FiTrash2, FiLoader, FiTag } from "react-icons/fi";
 import api from "@/utils/coreApi";
@@ -9,7 +9,10 @@ import { Difficulty } from "@/enums/difficulty.enum";
 import { Tags } from "@/enums/tags.enum";
 import MarkdownEditorWithPreview from "@/components/common/MarkdownEditorWithPreview";
 import NewTestcaseInput from "./NewTestcaseInput";
-import { submissionLimits } from "@/config/contestConfig";
+import {
+  submissionLimits,
+  testcaseTimeoutLimits,
+} from "@/config/contestConfig";
 
 const tagColors = [
   "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100",
@@ -19,6 +22,14 @@ const tagColors = [
   "bg-pink-100 text-pink-700 dark:bg-pink-800 dark:text-pink-100",
   "bg-indigo-100 text-indigo-700 dark:bg-indigo-800 dark:text-indigo-100",
 ];
+
+const initialTestcaseState = {
+  input: "",
+  output: "",
+  score: 10,
+  isPublic: true,
+  timeout: testcaseTimeoutLimits.default,
+};
 
 const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
   const { id: contestId } = useParams();
@@ -32,9 +43,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
   const [maxSubmissions, setMaxSubmissions] = useState(
     submissionLimits.default
   );
-  const [testcases, setTestcases] = useState([
-    { input: "", output: "", score: 10, isPublic: true },
-  ]);
+  const [testcases, setTestcases] = useState([{ ...initialTestcaseState }]);
   const [isLoading, setIsLoading] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState([]);
@@ -58,10 +67,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
   }, []);
 
   const addTestcase = () => {
-    setTestcases([
-      ...testcases,
-      { input: "", output: "", score: 10, isPublic: false },
-    ]);
+    setTestcases([...testcases, { ...initialTestcaseState, isPublic: false }]);
   };
 
   const removeTestcase = (indexToRemove) => {
@@ -102,7 +108,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
     const trimmedTagKey = tagKeyToAdd?.trim();
     if (!trimmedTagKey || !Tags || !Tags.hasOwnProperty(trimmedTagKey)) {
       if (trimmedTagKey)
-        toast?.(`Tag "${trimmedTagKey}" is not valid.`, "warning");
+        toast?.(`Tag key "${trimmedTagKey}" is not valid.`, "warning");
       setTagInput("");
       setTagSuggestions([]);
       return;
@@ -158,25 +164,22 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
 
     if (!name.trim()) {
       toast?.("Problem name is required.", "error");
-      setIsLoading(false);
       return;
     }
     if (!content.trim()) {
       toast?.("Problem description is required.", "error");
-      setIsLoading(false);
       return;
     }
     if (tags.length === 0) {
       toast?.("At least one tag is required.", "error");
-      setIsLoading(false);
       return;
     }
-    const maxSubsNumber = parseInt(maxSubmissions, 10);
+    const maxSubsNumber = parseInt(String(maxSubmissions), 10);
     if (
+      String(maxSubmissions).trim() === "" ||
       isNaN(maxSubsNumber) ||
       maxSubsNumber < submissionLimits.min ||
       maxSubsNumber > submissionLimits.max
@@ -185,20 +188,51 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
         `Max submissions must be a number between ${submissionLimits.min} and ${submissionLimits.max}.`,
         "error"
       );
-      setIsLoading(false);
       return;
     }
     if (!testcases || testcases.length === 0) {
       toast?.("At least one testcase is required.", "error");
-      setIsLoading(false);
-      return;
-    }
-    if (testcases.some((tc) => !tc.input?.trim() || !tc.output?.trim())) {
-      toast?.("All testcases require non-empty input and output.", "error");
-      setIsLoading(false);
       return;
     }
 
+    for (const [index, tc] of testcases.entries()) {
+      if (!tc.input?.trim() || !tc.output?.trim()) {
+        toast?.(
+          `Testcase #${index + 1}: Input and Output are required.`,
+          "error"
+        );
+        return;
+      }
+      const scoreVal = parseInt(String(tc.score), 10);
+      if (isNaN(scoreVal) || scoreVal < 0) {
+        toast?.(
+          `Testcase #${index + 1}: Score must be a non-negative number.`,
+          "error"
+        );
+        return;
+      }
+      const timeoutStr = String(tc.timeout).trim();
+      if (timeoutStr === "") {
+        toast?.(`Testcase #${index + 1}: Timeout cannot be empty.`, "error");
+        return;
+      }
+      const timeoutVal = parseInt(timeoutStr, 10);
+      if (
+        isNaN(timeoutVal) ||
+        timeoutVal < testcaseTimeoutLimits.min ||
+        timeoutVal > testcaseTimeoutLimits.max
+      ) {
+        toast?.(
+          `Testcase #${index + 1}: Timeout must be a number between ${
+            testcaseTimeoutLimits.min
+          } and ${testcaseTimeoutLimits.max} seconds.`,
+          "error"
+        );
+        return;
+      }
+    }
+
+    setIsLoading(true);
     const payload = {
       name: name.trim(),
       content: content.trim(),
@@ -209,7 +243,8 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
         input: tc.input?.trim() ?? "",
         output: tc.output?.trim() ?? "",
         score: Number(tc.score) || 0,
-        isPublic: tc.isPublic === "true" || tc.isPublic === true,
+        isPublic: tc.isPublic === true || String(tc.isPublic) === "true",
+        timeout: parseInt(String(tc.timeout), 10),
       })),
     };
 
@@ -238,14 +273,16 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 p-4 md:p-6">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 p-4 md:p-6 bg-white dark:bg-gray-800 rounded-lg shadow"
+    >
       <div>
         <label
           htmlFor="problemName-create"
           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
         >
-          {" "}
-          Problem Name <span className="text-red-500">*</span>{" "}
+          Problem Name <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
@@ -253,7 +290,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
           disabled={isLoading}
         />
       </div>
@@ -263,20 +300,18 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
             htmlFor="difficulty-create"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
           >
-            {" "}
-            Difficulty <span className="text-red-500">*</span>{" "}
+            Difficulty <span className="text-red-500">*</span>
           </label>
           <select
             id="difficulty-create"
             value={difficulty}
             onChange={(e) => setDifficulty(e.target.value)}
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
             disabled={isLoading}
           >
             {Object.values(Difficulty).map((level) => (
               <option key={level} value={level}>
-                {" "}
-                {level.charAt(0).toUpperCase() + level.slice(1)}{" "}
+                {level.charAt(0).toUpperCase() + level.slice(1)}
               </option>
             ))}
           </select>
@@ -286,8 +321,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
             htmlFor="maxSubmissions-create"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
           >
-            {" "}
-            Max Submissions <span className="text-red-500">*</span>{" "}
+            Max Submissions <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
@@ -299,7 +333,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
             min={submissionLimits.min}
             max={submissionLimits.max}
             step="1"
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             disabled={isLoading}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -309,8 +343,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
       </div>
       <div className="relative">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          {" "}
-          Tags <span className="text-red-500">*</span>{" "}
+          Tags <span className="text-red-500">*</span>
         </label>
         <div className="flex items-center gap-2 mb-2">
           <input
@@ -319,14 +352,13 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
             onChange={handleTagInputChange}
             onKeyDown={handleTagKeyDown}
             placeholder="Type to search and press Enter to add"
-            className="flex-grow p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+            className="flex-grow p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
             disabled={isLoading}
             autoComplete="off"
           />
         </div>
         {tagInput && tagSuggestions.length > 0 && (
           <ul className="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-50">
-            {" "}
             {tagSuggestions.map((tagKey) => (
               <li
                 key={tagKey}
@@ -336,8 +368,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
                   handleAddTag(tagKey);
                 }}
               >
-                {" "}
-                {Tags[tagKey] || tagKey}{" "}
+                {Tags[tagKey] || tagKey}
               </li>
             ))}
           </ul>
@@ -350,8 +381,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
                 tagColors[index % tagColors.length]
               }`}
             >
-              {" "}
-              <FiTag size={12} /> {tagValue}{" "}
+              <FiTag size={12} /> {tagValue}
               <button
                 type="button"
                 onClick={() => handleRemoveTag(tagValue)}
@@ -359,17 +389,15 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
                 disabled={isLoading}
                 aria-label={`Remove tag ${tagValue}`}
               >
-                {" "}
-                &times;{" "}
-              </button>{" "}
+                &times;
+              </button>
             </span>
           ))}
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          {" "}
-          Description (Markdown) <span className="text-red-500">*</span>{" "}
+          Description (Markdown) <span className="text-red-500">*</span>
         </label>
         <MarkdownEditorWithPreview
           value={content}
@@ -379,10 +407,8 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
         />
       </div>
       <div className="space-y-3 pt-4 border-t dark:border-gray-700">
-        {" "}
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {" "}
-          Testcases <span className="text-red-500">*</span>{" "}
+          Testcases <span className="text-red-500">*</span>
         </label>
         {testcases.map((tc, index) => (
           <NewTestcaseInput
@@ -400,27 +426,24 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
           className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
           disabled={isLoading}
         >
-          {" "}
-          <FiPlus size={16} /> Add Testcase{" "}
+          <FiPlus size={16} /> Add Testcase
         </button>
       </div>
       <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700">
-        {" "}
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border border-gray-300 rounded shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
           disabled={isLoading}
         >
-          {" "}
-          Cancel{" "}
+          Cancel
         </button>
         <button
           type="submit"
           className="px-4 py-2 border border-transparent rounded shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center gap-2"
           disabled={isLoading}
         >
-          {isLoading && <FiLoader className="animate-spin h-4 w-4" />}{" "}
+          {isLoading && <FiLoader className="animate-spin h-4 w-4" />}
           {isLoading ? "Creating..." : "Create Problem"}
         </button>
       </div>
