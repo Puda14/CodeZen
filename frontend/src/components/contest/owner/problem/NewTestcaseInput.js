@@ -1,17 +1,6 @@
-// src/components/contest/owner/problem/NewTestcaseInput.js
-"use client";
-
-import React from "react";
 import { FiTrash2 } from "react-icons/fi";
+import { testcaseTimeoutLimits } from "@/config/contestConfig";
 
-/**
- * Input group for a single testcase within creation or edit forms.
- * @param {object} testcase - The testcase data object.
- * @param {number} index - The index of this testcase.
- * @param {function} onChange - Callback(index, field, value) for input changes.
- * @param {function} onRemove - Callback(index) to remove this testcase.
- * @param {boolean} isSaving - Disables inputs during save operations.
- */
 const NewTestcaseInput = ({
   testcase,
   index,
@@ -20,77 +9,143 @@ const NewTestcaseInput = ({
   isSaving,
 }) => {
   const handleFieldChange = (field, value) => {
-    onChange(index, field, value);
+    let processedValue = value;
+    if (field === "score") {
+      const numValue = parseInt(value, 10);
+      processedValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
+    } else if (field === "isPublic") {
+      processedValue = value === "true";
+    } else if (field === "timeout") {
+      if (value !== "") {
+        const numValue = parseInt(value, 10);
+        if (isNaN(numValue)) {
+          return;
+        }
+        if (numValue < testcaseTimeoutLimits.min) {
+          processedValue = testcaseTimeoutLimits.min;
+        } else if (numValue > testcaseTimeoutLimits.max) {
+          processedValue = testcaseTimeoutLimits.max;
+        } else {
+          processedValue = numValue;
+        }
+      }
+    }
+    onChange(index, field, processedValue);
   };
 
   return (
-    <div className="p-3 border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 space-y-2 relative">
-      {typeof onRemove === 'function' && (
-         <button
-           type="button"
-           onClick={() => onRemove(index)}
-           className="absolute top-1 right-1 text-red-500 hover:text-red-700 disabled:opacity-50 p-1"
-           disabled={isSaving}
-           title="Remove testcase"
-           aria-label={`Remove testcase ${index + 1}`}
-         >
-           <FiTrash2 size={16} />
-         </button>
-      )}
-      <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+    <div className="p-3 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm relative">
+      <button
+        type="button"
+        onClick={() => onRemove(index)}
+        className="absolute top-3 right-3 text-red-500 hover:text-red-700 disabled:opacity-50 p-1 z-10 transition-colors"
+        disabled={isSaving}
+        title="Remove this testcase"
+      >
+        <FiTrash2 size={16} />
+      </button>
+
+      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
         Testcase #{index + 1}
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Input: <span className="text-red-500">*</span>
+          <label
+            htmlFor={`problem-input-${index}`}
+            className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5"
+          >
+            Input <span className="text-red-500">*</span>
           </label>
           <textarea
-            value={testcase.input ?? ''}
+            id={`problem-input-${index}`}
+            value={testcase.input || ""}
             onChange={(e) => handleFieldChange("input", e.target.value)}
             required
-            className="w-full p-1.5 border border-gray-300 dark:border-gray-500 rounded dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono text-xs h-40 resize-y focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-70"
+            rows={3}
+            className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-y font-mono"
             disabled={isSaving}
-            rows={5}
+            placeholder="Testcase input"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Output: <span className="text-red-500">*</span>
+          <label
+            htmlFor={`problem-output-${index}`}
+            className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5"
+          >
+            Output <span className="text-red-500">*</span>
           </label>
           <textarea
-            value={testcase.output ?? ''}
+            id={`problem-output-${index}`}
+            value={testcase.output || ""}
             onChange={(e) => handleFieldChange("output", e.target.value)}
             required
-            className="w-full p-1.5 border border-gray-300 dark:border-gray-500 rounded dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono text-xs h-40 resize-y focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-70"
+            rows={3}
+            className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-y font-mono"
             disabled={isSaving}
-            rows={5}
+            placeholder="Expected output"
           />
         </div>
       </div>
-      <div className="flex items-center gap-4">
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Score: <span className="text-red-500">*</span>
+          <label
+            htmlFor={`problem-score-${index}`}
+            className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5"
+          >
+            Score <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
-            value={testcase.score ?? ''}
-            min="0"
+            id={`problem-score-${index}`}
+            value={testcase.score ?? 0}
             onChange={(e) => handleFieldChange("score", e.target.value)}
             required
-            className="border dark:bg-gray-800 border-gray-300 dark:border-gray-500 rounded p-1 text-sm w-20 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-70"
+            min="0"
+            className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             disabled={isSaving}
+            placeholder="Points"
           />
         </div>
+
         <div>
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label
+            htmlFor={`problem-timeout-${index}`}
+            className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5"
+          >
+            Timeout (s) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="number"
+            id={`problem-timeout-${index}`}
+            value={testcase.timeout ?? ""}
+            onChange={(e) => handleFieldChange("timeout", e.target.value)}
+            required
+            min={testcaseTimeoutLimits.min}
+            max={testcaseTimeoutLimits.max}
+            step="1"
+            className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            disabled={isSaving}
+            placeholder={`${testcaseTimeoutLimits.min}-${testcaseTimeoutLimits.max}s`}
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Range: {testcaseTimeoutLimits.min}s - {testcaseTimeoutLimits.max}s.
+          </p>
+        </div>
+
+        <div>
+          <label
+            htmlFor={`problem-visibility-${index}`}
+            className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
             Visibility:
           </label>
           <select
-            value={String(testcase.isPublic ?? 'false')}
+            id={`problem-visibility-${index}`}
+            value={String(testcase.isPublic)}
             onChange={(e) => handleFieldChange("isPublic", e.target.value)}
-            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-500 rounded p-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-70"
+            className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-70"
             disabled={isSaving}
           >
             <option value="true">Public</option>

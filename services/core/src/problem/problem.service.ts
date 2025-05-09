@@ -147,6 +147,7 @@ export class ProblemService {
           input: doc.input,
           output: doc.output,
           isPublic: doc.isPublic,
+          timeout: doc.timeout,
         };
       },
     });

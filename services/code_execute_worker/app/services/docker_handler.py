@@ -50,7 +50,7 @@ def compile_code_in_docker(user_dir: str, processor: str):
     raise CompilationErrorException(logs, exit_code=e.exit_status)
 
 
-def run_code_in_docker(user_dir: str, processor: str):
+def run_code_in_docker(user_dir: str, processor: str, timeout_sec: int):
   """
   Executes user-provided code inside a Docker container.
   Raises specific exceptions for errors.
@@ -81,7 +81,7 @@ def run_code_in_docker(user_dir: str, processor: str):
 
     run_logs = client.containers.run(
       image=image,
-      command=f"bash -c '{config['final_command'](user_dir)}'",
+      command=f"bash -c '{config['final_command'](user_dir, timeout_sec)}'",
       volumes={user_dir: {"bind": f"{user_dir}", "mode": "rw"}},
       working_dir=f"{user_dir}",
       network_disabled=True,

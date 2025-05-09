@@ -1,19 +1,9 @@
 "use client";
 
 import React from "react";
-import { FiGlobe, FiCheckSquare, FiSquare, FiTrash2 } from "react-icons/fi";
+import { FiGlobe, FiCheckSquare, FiSquare } from "react-icons/fi";
+import { testcaseTimeoutLimits } from "@/config/contestConfig";
 
-/**
- * Renders a single testcase item, supporting view, edit, and delete selection modes.
- * @param {object} testcase - The testcase data object.
- * @param {number} index - The index of the testcase in the list.
- * @param {boolean} isEditing - True if the parent is in edit mode for this item's fields.
- * @param {boolean} isSaving - True if the parent is currently saving edits (disables inputs).
- * @param {function} onChange - Callback(index, field, value) for input changes during edit.
- * @param {boolean} isDeleteMode - True if the parent is in delete selection mode.
- * @param {boolean} isSelected - True if this testcase is selected for deletion.
- * @param {function} onSelect - Callback(testcaseId) when the delete checkbox is toggled.
- */
 const SingleTestcase = React.memo(
   ({
     testcase,
@@ -28,7 +18,10 @@ const SingleTestcase = React.memo(
     const handleFieldChange = (field, value) => {
       onChange(index, field, value);
     };
+
     const handleScoreChange = (e) => handleFieldChange("score", e.target.value);
+    const handleTimeoutChange = (e) =>
+      handleFieldChange("timeout", e.target.value);
     const handleIsPublicChange = (e) =>
       handleFieldChange("isPublic", e.target.value);
     const handleInputChange = (e) => handleFieldChange("input", e.target.value);
@@ -36,26 +29,53 @@ const SingleTestcase = React.memo(
       handleFieldChange("output", e.target.value);
 
     const isPublicValue =
-      testcase.isPublic === true || testcase.isPublic === "true";
+      testcase.isPublic === true || String(testcase.isPublic) === "true";
     const testcaseId = testcase._id || testcase.id;
     const keyId = testcaseId || `temp-${index}`;
 
+    const cardBaseClasses =
+      "relative rounded-lg border p-4 shadow-md transition-all duration-200 ease-in-out";
+    const cardDefaultClasses =
+      "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700";
+    const cardEditingClasses =
+      "bg-blue-50 dark:bg-blue-900/60 border-blue-400 dark:border-blue-600 ring-1 ring-blue-400 dark:ring-blue-600";
+    const cardDeleteHoverClasses =
+      isDeleteMode && !isSelected
+        ? "hover:border-red-500 dark:hover:border-red-600"
+        : "";
+    const cardDeleteSelectedClasses =
+      isDeleteMode && isSelected
+        ? "bg-red-100 dark:bg-red-900/60 border-red-500 dark:border-red-600 ring-2 ring-red-500 dark:ring-red-600"
+        : "";
+    const cardClasses = `${cardBaseClasses} ${
+      isEditing ? cardEditingClasses : cardDefaultClasses
+    } ${cardDeleteHoverClasses} ${cardDeleteSelectedClasses}`;
+
+    const inputBaseClasses =
+      "w-full rounded-md border p-2 text-sm outline-none transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed";
+    const inputLightClasses =
+      "bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50";
+    const inputDarkClasses =
+      "dark:bg-gray-700 dark:border-gray-500 dark:text-gray-50 dark:placeholder-gray-400 dark:focus:border-blue-400 dark:focus:ring-blue-400/50";
+    const formElementClasses = `${inputBaseClasses} ${inputLightClasses} ${inputDarkClasses}`;
+
+    const textareaClasses = `${formElementClasses} h-32 resize-y font-mono text-xs`;
+    const numberInputClasses = `${formElementClasses} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`;
+    const selectInputClasses = `${formElementClasses}`;
+
+    const scoreColor = "text-orange-600 dark:text-orange-400";
+    const timeoutColor = "text-teal-600 dark:text-teal-400";
+    const publicColor = "text-emerald-600 dark:text-emerald-400";
+    const privateColor = "text-rose-600 dark:text-rose-400";
+
     return (
-      <div
-        key={keyId}
-        className={`relative rounded-lg border p-4 shadow-sm transition-colors duration-150 ${
-          isEditing
-            ? "bg-gray-100 dark:bg-gray-700/80 border-gray-300 dark:border-gray-600"
-            : "bg-gray-50 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700"
-        } ${isDeleteMode ? "border-blue-400 dark:border-blue-600" : ""} ${
-          isSelected ? "bg-blue-50 dark:bg-blue-900/50 border-blue-500" : ""
-        }`}
-      >
+      <div key={keyId} className={cardClasses}>
         {isDeleteMode && testcaseId && (
           <div className="absolute top-3 left-3 z-10">
             <label
               htmlFor={`select-tc-${keyId}`}
-              className="flex cursor-pointer items-center p-1"
+              className="flex cursor-pointer items-center p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700/60"
+              title={isSelected ? "Bỏ chọn để xóa" : "Chọn để xóa"}
             >
               <input
                 id={`select-tc-${keyId}`}
@@ -66,134 +86,177 @@ const SingleTestcase = React.memo(
               />
               {isSelected ? (
                 <FiCheckSquare
-                  className="text-blue-600 dark:text-blue-400"
-                  size={18}
+                  className="text-red-500 dark:text-red-400"
+                  size={20}
                 />
               ) : (
                 <FiSquare
-                  className="text-gray-400 dark:text-gray-500"
-                  size={18}
+                  className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                  size={20}
                 />
               )}
             </label>
           </div>
         )}
 
-        <div className={isDeleteMode ? "pl-8" : ""}>
+        <div className={isDeleteMode && testcaseId ? "pl-12" : ""}>
           <div className="mb-3 flex items-center justify-between border-b pb-2 dark:border-gray-600">
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-gray-800 dark:text-gray-100">
-              <span>#{index + 1}</span>
-              <span className="text-gray-400 dark:text-gray-500">|</span>
-              <span
-                className={` ${
-                  Number(testcase.score) >= 100
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-yellow-600 dark:text-yellow-400"
-                }`}
-              >
-                Score:{" "}
-                {isEditing ? (
-                  <input
-                    type="number"
-                    value={testcase.score ?? ""}
-                    onChange={handleScoreChange}
-                    className="w-20 rounded border border-gray-300 bg-white p-1 text-sm outline-none disabled:opacity-70 dark:border-gray-500 dark:bg-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    disabled={isSaving}
-                    min="0"
-                  />
-                ) : (
-                  <span className="font-semibold">
-                    {testcase.score ?? "N/A"}
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+              <span>Testcase #{index + 1}</span>
+              {!isEditing && (
+                <>
+                  <span className="text-gray-400 dark:text-gray-500">|</span>
+                  <span>
+                    Score:{" "}
+                    <span className={`font-semibold ${scoreColor}`}>
+                      {testcase.score ?? "N/A"}
+                    </span>
                   </span>
-                )}
-              </span>
-              <span className="text-gray-400 dark:text-gray-500">|</span>
-              <span
-                className={`font-medium ${
-                  isPublicValue
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-red-600 dark:text-red-400"
-                }`}
-              >
-                {isEditing ? (
-                  <>
-                    <FiGlobe
-                      className={`mr-1 inline ${
-                        isPublicValue ? "text-green-500" : "text-gray-500"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <select
-                      value={String(testcase.isPublic)}
-                      onChange={handleIsPublicChange}
-                      className="rounded border border-gray-300 bg-white p-1 text-sm outline-none disabled:opacity-70 dark:border-gray-500 dark:bg-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      disabled={isSaving}
-                    >
-                      <option value="true">Public</option>
-                      <option value="false">Private</option>
-                    </select>
-                  </>
-                ) : isPublicValue ? (
-                  "Public"
-                ) : (
-                  "Private"
-                )}
-              </span>
+                  <span className="text-gray-400 dark:text-gray-500">|</span>
+                  <span>
+                    Timeout:{" "}
+                    <span className={`font-semibold ${timeoutColor}`}>
+                      {testcase.timeout ?? testcaseTimeoutLimits.default}s
+                    </span>
+                  </span>
+                  <span className="text-gray-400 dark:text-gray-500">|</span>
+                  <span
+                    className={`font-semibold ${
+                      isPublicValue ? publicColor : privateColor
+                    }`}
+                  >
+                    {isPublicValue ? "Public" : "Private"}
+                  </span>
+                </>
+              )}
             </p>
           </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 mb-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                {" "}
-                Input:{" "}
+              <label
+                htmlFor={`single-tc-input-${keyId}`}
+                className="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300"
+              >
+                Input:
               </label>
               {isEditing ? (
                 <textarea
+                  id={`single-tc-input-${keyId}`}
                   value={testcase.input ?? ""}
                   onChange={handleInputChange}
-                  className="h-32 w-full resize-y rounded border border-gray-300 p-2 font-mono text-xs text-gray-900 outline-none disabled:opacity-70 dark:border-gray-500 dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className={textareaClasses}
                   spellCheck="false"
                   disabled={isSaving}
-                  style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}
+                  placeholder="Testcase input"
                 />
               ) : (
                 <pre
-                  className="max-h-24 w-full overflow-auto rounded border border-gray-200 bg-white p-2 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                  className="max-h-32 w-full overflow-auto rounded-md border bg-gray-100 p-2.5 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-700/60 dark:text-gray-200 shadow-inner"
                   style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}
                 >
                   {testcase.input || (
-                    <span className="italic text-gray-400">(empty)</span>
+                    <span className="italic text-gray-500 dark:text-gray-400">
+                      (empty)
+                    </span>
                   )}
                 </pre>
               )}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                {" "}
-                Output:{" "}
+              <label
+                htmlFor={`single-tc-output-${keyId}`}
+                className="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300"
+              >
+                Output:
               </label>
               {isEditing ? (
                 <textarea
+                  id={`single-tc-output-${keyId}`}
                   value={testcase.output ?? ""}
                   onChange={handleOutputChange}
-                  className="h-32 w-full resize-y rounded border border-gray-300 p-2 font-mono text-xs text-gray-900 outline-none disabled:opacity-70 dark:border-gray-500 dark:bg-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className={textareaClasses}
                   spellCheck="false"
                   disabled={isSaving}
-                  style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}
+                  placeholder="Expected output"
                 />
               ) : (
                 <pre
-                  className="max-h-24 w-full overflow-auto rounded border border-gray-200 bg-white p-2 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                  className="max-h-32 w-full overflow-auto rounded-md border bg-gray-100 p-2.5 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-700/60 dark:text-gray-200 shadow-inner"
                   style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}
                 >
                   {testcase.output || (
-                    <span className="italic text-gray-400">(empty)</span>
+                    <span className="italic text-gray-500 dark:text-gray-400">
+                      (empty)
+                    </span>
                   )}
                 </pre>
               )}
             </div>
           </div>
+          {isEditing && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start pt-3 border-t dark:border-gray-500 mt-4">
+              <div>
+                <label
+                  htmlFor={`single-tc-score-${keyId}`}
+                  className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1"
+                >
+                  Score <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id={`single-tc-score-${keyId}`}
+                  type="number"
+                  value={testcase.score ?? 0}
+                  onChange={handleScoreChange}
+                  className={numberInputClasses}
+                  disabled={isSaving}
+                  min="0"
+                  placeholder="Points"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor={`single-tc-timeout-${keyId}`}
+                  className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1"
+                >
+                  Timeout (s) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id={`single-tc-timeout-${keyId}`}
+                  type="number"
+                  value={testcase.timeout ?? ""}
+                  onChange={handleTimeoutChange}
+                  min={testcaseTimeoutLimits.min}
+                  max={testcaseTimeoutLimits.max}
+                  step="1"
+                  className={numberInputClasses}
+                  disabled={isSaving}
+                  placeholder={`${testcaseTimeoutLimits.min}-${testcaseTimeoutLimits.max}s`}
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Range: {testcaseTimeoutLimits.min}s -{" "}
+                  {testcaseTimeoutLimits.max}s.
+                </p>
+              </div>
+              <div>
+                <label
+                  htmlFor={`single-tc-visibility-${keyId}`}
+                  className="block text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1"
+                >
+                  Visibility
+                </label>
+                <select
+                  id={`single-tc-visibility-${keyId}`}
+                  value={String(isPublicValue)}
+                  onChange={handleIsPublicChange}
+                  className={selectInputClasses}
+                  disabled={isSaving}
+                >
+                  <option value="true">Public</option>
+                  <option value="false">Private</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

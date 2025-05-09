@@ -9,7 +9,10 @@ import { Difficulty } from "@/enums/difficulty.enum";
 import { Tags } from "@/enums/tags.enum";
 import MarkdownEditorWithPreview from "@/components/common/MarkdownEditorWithPreview";
 import NewTestcaseInput from "@/components/contest/owner/problem/NewTestcaseInput";
-import { submissionLimits } from "@/config/contestConfig";
+import {
+  submissionLimits,
+  testcaseTimeoutLimits,
+} from "@/config/contestConfig";
 
 const tagColors = [
   "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100",
@@ -35,14 +38,11 @@ const ProblemInputGroup = ({
   const handleProblemFieldChange = (field, value) => {
     if (field === "maxSubmissions") {
       let processedValue = value;
-
       if (value !== "") {
         const numValue = parseInt(value, 10);
-
         if (isNaN(numValue)) {
           return;
         }
-
         if (numValue < submissionLimits.min) {
           processedValue = submissionLimits.min;
         } else if (numValue > submissionLimits.max) {
@@ -63,13 +63,21 @@ const ProblemInputGroup = ({
     );
     onChange(problemIndex, "testcases", updatedTestcases);
   };
+
   const addTestcaseRow = () => {
     const newTestcases = [
       ...(problem.testcases || []),
-      { input: "", output: "", score: 10, isPublic: false },
+      {
+        input: "",
+        output: "",
+        score: 10,
+        isPublic: false,
+        timeout: testcaseTimeoutLimits.default,
+      },
     ];
     onChange(problemIndex, "testcases", newTestcases);
   };
+
   const removeTestcaseRow = (testcaseIndex) => {
     if (!problem.testcases || problem.testcases.length <= 1) {
       toast?.("Problem needs at least one testcase.", "warning");
@@ -80,6 +88,7 @@ const ProblemInputGroup = ({
     );
     onChange(problemIndex, "testcases", newTestcases);
   };
+
   const handleTagInputChange = (e) => {
     const value = e.target.value;
     setTagInput(value);
@@ -98,11 +107,15 @@ const ProblemInputGroup = ({
       setTagSuggestions([]);
     }
   };
+
   const handleAddTag = (tagKeyToAdd) => {
     const trimmedTagKey = tagKeyToAdd?.trim();
     if (!trimmedTagKey || !Tags || !Tags.hasOwnProperty(trimmedTagKey)) {
       if (trimmedTagKey)
-        toast?.(`Tag "${trimmedTagKey}" is not valid.`, "warning");
+        toast?.(
+          `Tag "${trimmedTagKey}" is not valid. Please select from suggestions.`,
+          "warning"
+        );
       setTagInput("");
       setTagSuggestions([]);
       return;
@@ -114,6 +127,7 @@ const ProblemInputGroup = ({
     setTagInput("");
     setTagSuggestions([]);
   };
+
   const handleTagKeyDown = (e) => {
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
@@ -123,15 +137,19 @@ const ProblemInputGroup = ({
           key.toLowerCase() === valueToMatch ||
           (Tags[key] && Tags[key].toLowerCase() === valueToMatch)
       );
-      if (exactMatchKey) handleAddTag(exactMatchKey);
-      else if (tagSuggestions.length > 0) handleAddTag(tagSuggestions[0]);
-      else {
-        toast?.(`Tag "${tagInput.trim()}" is not valid.`, "warning");
+
+      if (exactMatchKey) {
+        handleAddTag(exactMatchKey);
+      } else if (tagSuggestions.length > 0) {
+        handleAddTag(tagSuggestions[0]);
+      } else {
+        toast?.(`Tag "${tagInput.trim()}" is not a valid tag.`, "warning");
         setTagInput("");
         setTagSuggestions([]);
       }
     }
   };
+
   const handleRemoveTag = (tagKeyToRemove) => {
     const newTags = (problem.tags || []).filter(
       (tagKey) => tagKey !== tagKeyToRemove
@@ -242,20 +260,20 @@ const ProblemInputGroup = ({
                   handleAddTag(tagKey);
                 }}
               >
-                {Tags[tagKey] || tagKey}
+                {Tags[tagKey] || tagKey}{" "}
               </li>
             ))}
           </ul>
         )}
         <div className="flex flex-wrap gap-2 min-h-[24px] mt-2">
-          {(problem.tags || []).map((tagKey, index) => (
+          {(problem.tags || []).map((tagKey, idx) => (
             <span
-              key={tagKey}
+              key={`${tagKey}-${idx}`}
               className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                tagColors[index % tagColors.length]
+                tagColors[idx % tagColors.length]
               }`}
             >
-              <FiTag size={12} /> {Tags[tagKey] || tagKey}
+              <FiTag size={12} /> {Tags[tagKey] || tagKey}{" "}
               <button
                 type="button"
                 onClick={() => handleRemoveTag(tagKey)}
@@ -263,8 +281,7 @@ const ProblemInputGroup = ({
                 disabled={isSaving}
                 aria-label={`Remove tag ${Tags[tagKey] || tagKey}`}
               >
-                {" "}
-                &times;{" "}
+                &times;
               </button>
             </span>
           ))}
@@ -285,11 +302,11 @@ const ProblemInputGroup = ({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Testcases <span className="text-red-500">*</span>
         </label>
-        {(problem.testcases || []).map((tc, index) => (
+        {(problem.testcases || []).map((tc, i) => (
           <NewTestcaseInput
-            key={`p${problemIndex}-tc-${index}`}
+            key={`p${problemIndex}-tc-${i}`}
             testcase={tc}
-            index={index}
+            index={i}
             onChange={handleTestcaseChange}
             onRemove={removeTestcaseRow}
             isSaving={isSaving}
@@ -336,9 +353,12 @@ const CreateContestForm = () => {
         console.error("Could not fetch problem template:", error);
         setTemplateError(true);
         setTemplateContent(
-          `# Problem Title\n\n## Description\n\n## Input\n\n## Output\n\n## Example\n\n## Constraints\n\n## Note\n`
+          `# Problem Title\n\n## Description\n\nTask description here. Be clear and concise.\n\n## Input Format\n\nDescription of the input format.\n\n## Output Format\n\nDescription of the output format.\n\n## Constraints\n\n- $1 \le N \le 10^5$\n- $1 \le Q \le 10^5$\n\n## Example\n\n### Input\n\`\`\`\nExample Input\n\`\`\`\n\n### Output\n\`\`\`\nExample Output\n\`\`\`\n\n## Notes (Optional)\n\nAny additional notes or hints.`
         );
-        toast?.("Could not load problem template file.", "warning");
+        toast?.(
+          "Could not load problem template file. Using default.",
+          "warning"
+        );
       }
     };
     fetchTemplate();
@@ -353,7 +373,15 @@ const CreateContestForm = () => {
         difficulty: Difficulty.NORMAL,
         tags: [],
         maxSubmissions: submissionLimits.default,
-        testcases: [{ input: "", output: "", score: 10, isPublic: true }],
+        testcases: [
+          {
+            input: "",
+            output: "",
+            score: 10,
+            isPublic: true,
+            timeout: testcaseTimeoutLimits.default,
+          },
+        ],
       },
     ]);
   };
@@ -403,7 +431,7 @@ const CreateContestForm = () => {
       endTimeISO = endDate.toISOString();
     } catch (error) {
       console.error("Error processing date/time:", error);
-      toast?.("Error processing times.", "error");
+      toast?.("Error processing times. Please check the format.", "error");
       return;
     }
 
@@ -411,6 +439,7 @@ const CreateContestForm = () => {
       toast?.("At least one problem is required.", "error");
       return;
     }
+
     for (const [index, p] of problems.entries()) {
       if (!p.name?.trim()) {
         toast?.(`Name for problem #${index + 1} is required.`, "error");
@@ -421,20 +450,23 @@ const CreateContestForm = () => {
         return;
       }
       if (!p.tags || p.tags.length === 0) {
-        toast?.(`Tags required for problem #${index + 1}.`, "error");
+        toast?.(
+          `At least one tag is required for problem #${index + 1}.`,
+          "error"
+        );
         return;
       }
       const maxSubs = p.maxSubmissions;
       if (
         maxSubs === undefined ||
         maxSubs === null ||
-        maxSubs === "" ||
+        String(maxSubs).trim() === "" ||
         isNaN(parseInt(maxSubs, 10)) ||
         parseInt(maxSubs, 10) < submissionLimits.min ||
         parseInt(maxSubs, 10) > submissionLimits.max
       ) {
         toast?.(
-          `Max submissions for problem #${index + 1} must be between ${
+          `Max submissions for problem #${index + 1} must be a number between ${
             submissionLimits.min
           } and ${submissionLimits.max}.`,
           "error"
@@ -442,15 +474,39 @@ const CreateContestForm = () => {
         return;
       }
       if (!p.testcases || p.testcases.length === 0) {
-        toast?.(`Testcases required for problem #${index + 1}.`, "error");
+        toast?.(`Testcases are required for problem #${index + 1}.`, "error");
         return;
       }
-      if (p.testcases.some((tc) => !tc.input?.trim() || !tc.output?.trim())) {
-        toast?.(
-          `Input/Output required for all testcases in problem #${index + 1}.`,
-          "error"
-        );
-        return;
+
+      for (const [tcIndex, tc] of p.testcases.entries()) {
+        if (!tc.input?.trim() || !tc.output?.trim()) {
+          toast?.(
+            `Input and Output are required for testcase #${
+              tcIndex + 1
+            } in problem #${index + 1}.`,
+            "error"
+          );
+          return;
+        }
+        const timeoutVal = tc.timeout;
+        if (
+          timeoutVal === undefined ||
+          timeoutVal === null ||
+          String(timeoutVal).trim() === "" ||
+          isNaN(parseInt(timeoutVal, 10)) ||
+          parseInt(timeoutVal, 10) < testcaseTimeoutLimits.min ||
+          parseInt(timeoutVal, 10) > testcaseTimeoutLimits.max
+        ) {
+          toast?.(
+            `Timeout for testcase #${tcIndex + 1} in problem #${
+              index + 1
+            } must be a number between ${testcaseTimeoutLimits.min} and ${
+              testcaseTimeoutLimits.max
+            } seconds.`,
+            "error"
+          );
+          return;
+        }
       }
     }
 
@@ -468,32 +524,44 @@ const CreateContestForm = () => {
         name: p.name.trim(),
         content: p.content.trim(),
         difficulty: p.difficulty,
-        tags: (p.tags || [])
-          .map((tagKey) => Tags[tagKey] || tagKey)
-          .filter(Boolean),
+        tags: (p.tags || []).map((tagKey) => Tags[tagKey]).filter(Boolean),
         maxSubmissions: parseInt(p.maxSubmissions, 10),
         testcases: (p.testcases || []).map((tc) => ({
           input: tc.input?.trim() ?? "",
           output: tc.output?.trim() ?? "",
           score: Number(tc.score) || 0,
-          isPublic: tc.isPublic === "true" || tc.isPublic === true,
+          isPublic: tc.isPublic === true,
+          timeout: parseInt(tc.timeout, 10),
         })),
       })),
     };
 
     try {
-      console.log("Submitting Contest Payload:", payload);
+      console.log(
+        "Submitting Contest Payload:",
+        JSON.stringify(payload, null, 2)
+      );
       const response = await api.post("/contest/create", payload);
-      if (response.data) {
+      if (
+        response.data &&
+        (response.status === 201 || response.status === 200)
+      ) {
         toast?.("Contest created successfully!", "success");
         router.push("/contests");
       } else {
-        throw new Error(response.data?.message || "Contest creation failed.");
+        const serverMessage =
+          response.data?.message ||
+          response.data?.problem?.message ||
+          "Contest creation failed due to an unknown server error.";
+        throw new Error(serverMessage);
       }
     } catch (error) {
       console.error("Failed to create contest:", error);
       const errorMessage =
-        error.response?.data?.message || error.message || "Unknown error.";
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "An unknown error occurred while creating the contest.";
       toast?.(`Failed to create contest: ${errorMessage}`, "error");
     } finally {
       setIsLoading(false);
@@ -517,9 +585,9 @@ const CreateContestForm = () => {
           required
           className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
           disabled={isLoading}
+          placeholder="e.g., Weekly Coding Challenge #1"
         />
       </div>
-
       <div>
         <label
           htmlFor="contestDescription"
@@ -534,9 +602,9 @@ const CreateContestForm = () => {
           rows={4}
           className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 resize-y"
           disabled={isLoading}
+          placeholder="Provide a brief overview of the contest, rules, or any other relevant information."
         />
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label
@@ -573,7 +641,6 @@ const CreateContestForm = () => {
           />
         </div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
         <div className="flex items-center gap-2">
           <input
@@ -581,20 +648,19 @@ const CreateContestForm = () => {
             id="isPublic"
             checked={isPublic}
             onChange={(e) => setIsPublic(e.target.checked)}
-            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:checked:bg-indigo-500 dark:focus:ring-indigo-600"
             disabled={isLoading}
           />
           <label
             htmlFor="isPublic"
             className="text-sm font-medium text-gray-700 dark:text-gray-300"
           >
-            {" "}
-            Publicly Visible Contest{" "}
+            Publicly Visible Contest
           </label>
           <FiInfo
             size={14}
-            className="text-gray-400 flex-shrink-0"
-            title="If checked, anyone can see the contest..."
+            className="text-gray-400 dark:text-gray-500 flex-shrink-0 cursor-help"
+            title="If checked, anyone can see and register for this contest (if registration is open). If unchecked, it's a private contest."
           />
         </div>
         <div>
@@ -602,8 +668,7 @@ const CreateContestForm = () => {
             htmlFor="leaderboardStatus"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
           >
-            {" "}
-            Leaderboard Status{" "}
+            Leaderboard Status
           </label>
           <select
             id="leaderboardStatus"
@@ -612,21 +677,27 @@ const CreateContestForm = () => {
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
             disabled={isLoading}
           >
-            <option value="open">Open</option>
-            <option value="frozen">Frozen</option>
-            <option value="closed">Closed</option>
+            <option value="open">
+              Open (Visible during and after contest)
+            </option>
+            <option value="frozen">
+              Frozen (Visible but not updated during last hour)
+            </option>
+            <option value="closed">
+              Closed (Not visible until after contest ends)
+            </option>
           </select>
         </div>
       </div>
-
       <div className="space-y-4 pt-4 border-t dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
           Problems <span className="text-red-500">*</span>
         </h3>
         {templateError && (
-          <p className="text-sm text-yellow-600 dark:text-yellow-400">
-            {" "}
-            Warning: Could not load default problem template.{" "}
+          <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-700/30 p-3 rounded-md">
+            Warning: Could not load the default problem description template
+            from <code>/public/tmp_problem_des.md</code>. A fallback template is
+            being used.
           </p>
         )}
         {problems.map((p, index) => (
@@ -642,29 +713,27 @@ const CreateContestForm = () => {
         <button
           type="button"
           onClick={addProblem}
-          className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md p-3 w-full justify-center hover:border-blue-500 dark:hover:border-blue-500"
-          disabled={isLoading || !templateContent}
+          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md p-3 w-full justify-center hover:border-blue-500 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-70"
+          disabled={isLoading || (!templateContent && !templateError)}
         >
           <FiPlus size={16} /> Add Problem
         </button>
       </div>
-
       <div className="flex justify-end gap-3 pt-6 border-t dark:border-gray-700">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-800 focus:ring-gray-400"
           disabled={isLoading}
         >
-          {" "}
-          Cancel{" "}
+          Cancel
         </button>
         <button
           type="submit"
-          className="px-6 py-2 border border-transparent rounded shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center gap-2"
+          className="px-6 py-2 border border-transparent rounded shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-800 focus:ring-indigo-500 disabled:opacity-50 flex items-center gap-2"
           disabled={isLoading}
         >
-          {isLoading && <FiLoader className="animate-spin" />}{" "}
+          {isLoading && <FiLoader className="animate-spin h-4 w-4" />}{" "}
           {isLoading ? "Creating Contest..." : "Create Contest"}
         </button>
       </div>
