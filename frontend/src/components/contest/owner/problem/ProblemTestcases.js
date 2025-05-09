@@ -142,7 +142,7 @@ const ProblemTestcases = ({ problemId }) => {
     const apiUrl = `/contest/${contestId}/problems/${problemId}/testcases`;
 
     try {
-      await api.delete(apiUrl, { data: { ids: idsToDelete } });
+      await api.delete(apiUrl, { data: idsToDelete });
       toast?.(
         `${idsToDelete.length} testcase(s) deleted successfully!`,
         "success"
