@@ -493,7 +493,7 @@ const OwnerSubmissionsList = ({ contestId }) => {
                                     </div>
                                     <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 text-xs w-full sm:w-auto flex-shrink-0">
                                       <span className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono whitespace-nowrap">
-                                        {submission.language}
+                                        {submission.processor}
                                       </span>
                                       <time
                                         dateTime={submission.createdAt}

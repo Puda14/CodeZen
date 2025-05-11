@@ -22,6 +22,9 @@ export class Submission {
   language: string;
 
   @Prop({ required: true })
+  processor: string;
+
+  @Prop({ required: true })
   score: number;
 
   @Prop({

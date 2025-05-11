@@ -56,6 +56,9 @@ export class SubmissionDto {
   @IsString()
   language: string;
 
+  @IsString()
+  processor: string;
+
   @IsNumber()
   score: number;
 

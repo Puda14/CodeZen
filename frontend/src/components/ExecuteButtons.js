@@ -1,24 +1,16 @@
 "use client";
 
 import { FiPlay, FiSend, FiLoader } from "react-icons/fi";
+import { supportedProcessors } from "@/config/processorConfig";
 
 export default function ExecuteButtons({
-  language,
-  setLanguage,
+  selectedKey,
+  setSelectedKey,
   handleExecute,
   handleContestSubmit,
   isLoadingRun,
   isLoadingSubmit,
 }) {
-  const supportedLanguages = [
-    "cpp",
-    "java",
-    "python",
-    "javascript",
-    "rust",
-    "go",
-  ];
-
   return (
     <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
       <div className="w-full sm:w-auto">
@@ -27,18 +19,14 @@ export default function ExecuteButtons({
         </label>
         <select
           id="language-select"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
+          value={selectedKey}
+          onChange={(e) => setSelectedKey(e.target.value)}
           disabled={isLoadingRun || isLoadingSubmit}
           className="block w-full sm:w-40 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-900 dark:text-gray-100"
         >
-          {supportedLanguages.map((lang) => (
-            <option key={lang} value={lang}>
-              {lang === "cpp"
-                ? "C++"
-                : lang === "javascript"
-                ? "JavaScript"
-                : lang.charAt(0).toUpperCase() + lang.slice(1)}
+          {Object.entries(supportedProcessors).map(([key]) => (
+            <option key={key} value={key}>
+              {key}
             </option>
           ))}
         </select>
@@ -59,19 +47,21 @@ export default function ExecuteButtons({
           {isLoadingRun ? "Running..." : "Run"}
         </button>
 
-        <button
-          onClick={handleContestSubmit}
-          disabled={isLoadingRun || isLoadingSubmit}
-          className="px-5 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 flex items-center gap-2 transition duration-150 ease-in-out"
-          title="Submit solution for grading"
-        >
-          {isLoadingSubmit ? (
-            <FiLoader className="animate-spin" />
-          ) : (
-            <FiSend size={18} />
-          )}
-          {isLoadingSubmit ? "Submitting..." : "Submit"}
-        </button>
+        {handleContestSubmit && (
+          <button
+            onClick={handleContestSubmit}
+            disabled={isLoadingRun || isLoadingSubmit}
+            className="px-5 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 flex items-center gap-2 transition duration-150 ease-in-out"
+            title="Submit solution for grading"
+          >
+            {isLoadingSubmit ? (
+              <FiLoader className="animate-spin" />
+            ) : (
+              <FiSend size={18} />
+            )}
+            {isLoadingSubmit ? "Submitting..." : "Submit"}
+          </button>
+        )}
       </div>
     </div>
   );

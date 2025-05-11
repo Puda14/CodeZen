@@ -5,11 +5,8 @@ from app.models.rabbitmq import RabbitMQClient
 from app.models.request import Task, CodeExecutionRequest
 from app.services.code_executor import execute_code
 from app.services.code_evaluate import evaluate_code
+from app.processor_config import PROCESSOR_CONFIG
 import requests
-from app.exceptions import (
-  CompilationErrorException,
-  RuntimeErrorException,
-)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -107,7 +104,8 @@ class Worker:
           "contest": data.contestId,
           "problem": data.problemId,
           "code": data.code,
-          "language": data.processor,
+          "language": PROCESSOR_CONFIG[data.processor]["language"],
+          "processor": data.processor,
           "score": score,
           "testcaseResults": result.get("results")
         }

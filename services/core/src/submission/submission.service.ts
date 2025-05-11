@@ -20,8 +20,16 @@ export class SubmissionService {
   ) {}
 
   async createSubmission(body: SubmissionDto): Promise<any> {
-    const { userId, contest, problem, code, language, score, testcaseResults } =
-      body;
+    const {
+      userId,
+      contest,
+      problem,
+      code,
+      language,
+      processor,
+      score,
+      testcaseResults,
+    } = body;
 
     const submissionCount = await this.submissionModel.countDocuments({
       user: new Types.ObjectId(userId),
@@ -41,6 +49,7 @@ export class SubmissionService {
       problem: new Types.ObjectId(problem),
       code,
       language,
+      processor,
       score,
       testcaseResults,
       attemptNumber: submissionCount + 1,
