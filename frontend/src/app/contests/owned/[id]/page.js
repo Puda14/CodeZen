@@ -11,6 +11,7 @@ import {
   FiSettings,
   FiFileText,
   FiAlertTriangle,
+  FiPieChart,
 } from "react-icons/fi";
 import api from "@/utils/coreApi";
 import ContestInfo from "@/components/contest/owner/ContestInfo";
@@ -18,6 +19,7 @@ import RegistrationTable from "@/components/contest/owner/RegistrationTable";
 import ProblemList from "@/components/contest/owner/ProblemList";
 import OwnerLeaderboard from "@/components/contest/owner/OwnerLeaderboard";
 import OwnerSubmissionsList from "@/components/contest/owner/OwnerSubmissionsList";
+import ContestAnalyticsTab from "@/components/contest/owner/ContestAnalyticsTab";
 
 const TABS = [
   { name: "Settings", icon: FiSettings },
@@ -25,6 +27,7 @@ const TABS = [
   { name: "Registrations", icon: FiUsers },
   { name: "Leaderboard", icon: FiBarChart2 },
   { name: "Submissions", icon: FiFileText },
+  { name: "Analytics", icon: FiPieChart },
 ];
 
 const ContestDetailOwnerPage = () => {
@@ -222,6 +225,16 @@ const ContestDetailOwnerPage = () => {
             aria-labelledby="tab-submissions"
           >
             <OwnerSubmissionsList contestId={contestId} />
+          </div>
+        )}
+
+        {activeTab === "Analytics" && (
+          <div
+            role="tabpanel"
+            id="tabpanel-analytics"
+            aria-labelledby="tab-analytics"
+          >
+            <ContestAnalyticsTab contestId={contestId} />
           </div>
         )}
       </div>
