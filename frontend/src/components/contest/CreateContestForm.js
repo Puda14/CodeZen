@@ -1,8 +1,15 @@
 "use client";
-
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FiPlus, FiTrash2, FiLoader, FiInfo, FiTag } from "react-icons/fi";
+import {
+  FiPlus,
+  FiTrash2,
+  FiLoader,
+  FiInfo,
+  FiTag,
+  FiUploadCloud,
+  FiDownload,
+} from "react-icons/fi";
 import api from "@/utils/coreApi";
 import { useToast } from "@/context/ToastProvider";
 import { Difficulty } from "@/enums/difficulty.enum";
@@ -12,7 +19,9 @@ import NewTestcaseInput from "@/components/contest/owner/problem/NewTestcaseInpu
 import {
   submissionLimits,
   testcaseTimeoutLimits,
+  testcaseScoreLimits,
 } from "@/config/contestConfig";
+import { processContestZip } from "@/utils/contestZipProcessor";
 
 const tagColors = [
   "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100",
@@ -70,7 +79,7 @@ const ProblemInputGroup = ({
       {
         input: "",
         output: "",
-        score: 10,
+        score: testcaseScoreLimits.default,
         isPublic: false,
         timeout: testcaseTimeoutLimits.default,
       },
@@ -110,7 +119,9 @@ const ProblemInputGroup = ({
 
   const handleAddTag = (tagKeyToAdd) => {
     const trimmedTagKey = tagKeyToAdd?.trim();
-    if (!trimmedTagKey || !Tags || !Tags.hasOwnProperty(trimmedTagKey)) {
+    const isValidKey = Object.keys(Tags).some((key) => key === trimmedTagKey);
+
+    if (!isValidKey) {
       if (trimmedTagKey)
         toast?.(
           `Tag "${trimmedTagKey}" is not valid. Please select from suggestions.`,
@@ -132,11 +143,17 @@ const ProblemInputGroup = ({
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
       const valueToMatch = tagInput.trim().toLowerCase();
-      const exactMatchKey = Object.keys(Tags || {}).find(
-        (key) =>
-          key.toLowerCase() === valueToMatch ||
-          (Tags[key] && Tags[key].toLowerCase() === valueToMatch)
+      let exactMatchKey = Object.keys(Tags || {}).find(
+        (key) => key.toLowerCase() === valueToMatch
       );
+      if (!exactMatchKey) {
+        for (const key in Tags) {
+          if (Tags[key].toLowerCase() === valueToMatch) {
+            exactMatchKey = key;
+            break;
+          }
+        }
+      }
 
       if (exactMatchKey) {
         handleAddTag(exactMatchKey);
@@ -338,8 +355,12 @@ const CreateContestForm = () => {
   const [leaderboardStatus, setLeaderboardStatus] = useState("open");
   const [problems, setProblems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [templateContent, setTemplateContent] = useState("");
   const [templateError, setTemplateError] = useState(false);
+
+  const generateClientId = () =>
+    `client-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -353,7 +374,7 @@ const CreateContestForm = () => {
         console.error("Could not fetch problem template:", error);
         setTemplateError(true);
         setTemplateContent(
-          `# Problem Title\n\n## Description\n\nTask description here. Be clear and concise.\n\n## Input Format\n\nDescription of the input format.\n\n## Output Format\n\nDescription of the output format.\n\n## Constraints\n\n- $1 \le N \le 10^5$\n- $1 \le Q \le 10^5$\n\n## Example\n\n### Input\n\`\`\`\nExample Input\n\`\`\`\n\n### Output\n\`\`\`\nExample Output\n\`\`\`\n\n## Notes (Optional)\n\nAny additional notes or hints.`
+          `# Problem Title\n\n## Description\n\nTask description here. Be clear and concise.\n\n## Input Format\n\nDescription of the input format.\n\n## Output Format\n\nDescription of the output format.\n\n## Constraints\n\n- $1 \\le N \\le 10^5$\n- $1 \\le Q \\le 10^5$\n\n## Example\n\n### Input\n\`\`\`\nExample Input\n\`\`\`\n\n### Output\n\`\`\`\nExample Output\n\`\`\`\n\n## Notes (Optional)\n\nAny additional notes or hints.`
         );
         toast?.(
           "Could not load problem template file. Using default.",
@@ -365,9 +386,10 @@ const CreateContestForm = () => {
   }, [toast]);
 
   const addProblem = () => {
-    setProblems([
-      ...problems,
+    setProblems((prevProblems) => [
+      ...prevProblems,
       {
+        id: generateClientId(),
         name: "",
         content: templateContent,
         difficulty: Difficulty.NORMAL,
@@ -377,7 +399,7 @@ const CreateContestForm = () => {
           {
             input: "",
             output: "",
-            score: 10,
+            score: testcaseScoreLimits.default,
             isPublic: true,
             timeout: testcaseTimeoutLimits.default,
           },
@@ -386,18 +408,99 @@ const CreateContestForm = () => {
     ]);
   };
 
-  const removeProblem = (indexToRemove) => {
+  const removeProblem = (idToRemove) => {
     if (problems.length === 0) return;
-    setProblems(problems.filter((_, index) => index !== indexToRemove));
+    setProblems((currentProblems) =>
+      currentProblems.filter((p) => p.id !== idToRemove)
+    );
   };
 
-  const updateProblem = useCallback((index, field, value) => {
+  const updateProblem = useCallback((problemIdOrIndex, field, value) => {
     setProblems((currentProblems) =>
-      currentProblems.map((p, idx) =>
-        idx === index ? { ...p, [field]: value } : p
-      )
+      currentProblems.map((p, idx) => {
+        if (idx === problemIdOrIndex) {
+          return { ...p, [field]: value };
+        }
+        return p;
+      })
     );
   }, []);
+
+  const handleZipFileImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+      toast?.("Please upload a .zip file.", "error");
+      event.target.value = null;
+      return;
+    }
+
+    setIsImporting(true);
+    toast?.("Processing contest package...", "info", { duration: null });
+
+    try {
+      const result = await processContestZip(file, templateContent);
+      if (result.success && result.data) {
+        const {
+          title: newTitle,
+          description: newDesc,
+          startTime: newStart,
+          endTime: newEnd,
+          isPublic: newIsPublic,
+          leaderboardStatus: newLeaderboard,
+          problems: newProblemsFromZip,
+        } = result.data;
+
+        setTitle(newTitle || "");
+        setDescription(newDesc || "");
+        setStartTime(newStart || "");
+        setEndTime(newEnd || "");
+        setIsPublic(typeof newIsPublic === "boolean" ? newIsPublic : true);
+        setLeaderboardStatus(newLeaderboard || "open");
+
+        setProblems(
+          newProblemsFromZip.map((p_from_zip) => ({
+            id: generateClientId(),
+            name: p_from_zip.name || "",
+            content: p_from_zip.content || templateContent,
+            difficulty: p_from_zip.difficulty || Difficulty.NORMAL,
+            tags: p_from_zip.tags || [],
+            maxSubmissions:
+              p_from_zip.maxSubmissions === undefined
+                ? submissionLimits.default
+                : p_from_zip.maxSubmissions,
+            testcases: (p_from_zip.testcases || []).map((tc) => ({
+              input: tc.input || "",
+              output: tc.output || "",
+              score:
+                tc.score === undefined
+                  ? testcaseScoreLimits.default
+                  : Number(tc.score),
+              isPublic: typeof tc.isPublic === "boolean" ? tc.isPublic : false,
+              timeout:
+                tc.timeout === undefined
+                  ? testcaseTimeoutLimits.default
+                  : Number(tc.timeout),
+            })),
+          }))
+        );
+
+        toast?.(
+          "Contest data imported successfully! Please review and save.",
+          "success"
+        );
+      } else {
+        throw new Error(result.error || "Failed to parse contest package.");
+      }
+    } catch (error) {
+      console.error("Error importing contest from ZIP:", error);
+      toast?.(`Import failed: ${error.message}`, "error");
+    } finally {
+      setIsImporting(false);
+      event.target.value = null;
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -479,15 +582,19 @@ const CreateContestForm = () => {
       }
 
       for (const [tcIndex, tc] of p.testcases.entries()) {
-        if (!tc.input?.trim() || !tc.output?.trim()) {
+        if (tc.input?.trim() === "" && tc.output?.trim() === "") {
+        } else if (
+          (tc.input?.trim() && !tc.output?.trim()) ||
+          (!tc.input?.trim() && tc.output?.trim())
+        ) {
           toast?.(
-            `Input and Output are required for testcase #${
+            `Both Input and Output are typically required for testcase #${
               tcIndex + 1
-            } in problem #${index + 1}.`,
-            "error"
+            } in problem #${index + 1}, or both should be empty.`,
+            "warning"
           );
-          return;
         }
+
         const timeoutVal = tc.timeout;
         if (
           timeoutVal === undefined ||
@@ -503,6 +610,25 @@ const CreateContestForm = () => {
             } must be a number between ${testcaseTimeoutLimits.min} and ${
               testcaseTimeoutLimits.max
             } seconds.`,
+            "error"
+          );
+          return;
+        }
+        const scoreVal = tc.score;
+        if (
+          scoreVal === undefined ||
+          scoreVal === null ||
+          String(scoreVal).trim() === "" ||
+          isNaN(parseFloat(scoreVal)) ||
+          parseFloat(scoreVal) < (testcaseScoreLimits?.min ?? 1) ||
+          parseFloat(scoreVal) > (testcaseScoreLimits?.max ?? 100)
+        ) {
+          toast?.(
+            `Score for testcase #${tcIndex + 1} in problem #${
+              index + 1
+            } must be a number between ${testcaseScoreLimits?.min ?? 1} and ${
+              testcaseScoreLimits?.max ?? 100
+            }.`,
             "error"
           );
           return;
@@ -570,6 +696,53 @@ const CreateContestForm = () => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-none">
+      <div className="mb-6 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+          <FiUploadCloud className="mr-2 text-xl text-blue-500 dark:text-blue-400" />{" "}
+          Import Contest from ZIP
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+          Upload a .zip file containing the contest structure (
+          <code>contest.json</code>, problem folders with{" "}
+          <code>problem.md</code>, optional <code>config.json</code>, and{" "}
+          <code>testcases/</code>). Times in <code>contest.json</code> should be
+          in your local timezone format <code>YYYY-MM-DDTHH:MM:SS</code>.
+        </p>
+        <div className="flex items-center gap-4">
+          <input
+            type="file"
+            id="zip-upload"
+            accept=".zip"
+            onChange={handleZipFileImport}
+            className="block w-full text-sm text-gray-500 dark:text-gray-400
+                       file:mr-4 file:py-2 file:px-4
+                       file:rounded-full file:border-0
+                       file:text-sm file:font-semibold
+                       file:bg-blue-100 file:text-blue-700
+                       dark:file:bg-blue-700/30 dark:file:text-blue-200
+                       hover:file:bg-blue-200 dark:hover:file:bg-blue-600/40
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800
+                       disabled:opacity-50 cursor-pointer flex-grow"
+            disabled={isLoading || isImporting}
+          />
+          <a
+            href="/contest_template.zip"
+            download="Contest_Template.zip"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-500 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-800 focus:ring-gray-400 whitespace-nowrap"
+            title="Download contest structure template"
+          >
+            <FiDownload className="h-4 w-4" />
+            Template
+          </a>
+        </div>
+        {isImporting && (
+          <div className="mt-3 flex items-center text-sm text-blue-600 dark:text-blue-400">
+            <FiLoader className="animate-spin mr-2 h-4 w-4" />
+            <span>Importing contest data... please wait.</span>
+          </div>
+        )}
+      </div>
+
       <div>
         <label
           htmlFor="contestTitle"
@@ -584,7 +757,7 @@ const CreateContestForm = () => {
           onChange={(e) => setTitle(e.target.value)}
           required
           className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
-          disabled={isLoading}
+          disabled={isLoading || isImporting}
           placeholder="e.g., Weekly Coding Challenge #1"
         />
       </div>
@@ -601,7 +774,7 @@ const CreateContestForm = () => {
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
           className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 resize-y"
-          disabled={isLoading}
+          disabled={isLoading || isImporting}
           placeholder="Provide a brief overview of the contest, rules, or any other relevant information."
         />
       </div>
@@ -620,7 +793,7 @@ const CreateContestForm = () => {
             onChange={(e) => setStartTime(e.target.value)}
             required
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isLoading}
+            disabled={isLoading || isImporting}
           />
         </div>
         <div>
@@ -637,7 +810,7 @@ const CreateContestForm = () => {
             onChange={(e) => setEndTime(e.target.value)}
             required
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isLoading}
+            disabled={isLoading || isImporting}
           />
         </div>
       </div>
@@ -649,7 +822,7 @@ const CreateContestForm = () => {
             checked={isPublic}
             onChange={(e) => setIsPublic(e.target.checked)}
             className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:checked:bg-indigo-500 dark:focus:ring-indigo-600"
-            disabled={isLoading}
+            disabled={isLoading || isImporting}
           />
           <label
             htmlFor="isPublic"
@@ -675,7 +848,7 @@ const CreateContestForm = () => {
             value={leaderboardStatus}
             onChange={(e) => setLeaderboardStatus(e.target.value)}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isLoading}
+            disabled={isLoading || isImporting}
           >
             <option value="open">
               Open (Visible during and after contest)
@@ -695,26 +868,27 @@ const CreateContestForm = () => {
         </h3>
         {templateError && (
           <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-700/30 p-3 rounded-md">
-            Warning: Could not load the default problem description template
-            from <code>/public/tmp_problem_des.md</code>. A fallback template is
-            being used.
+            Warning: Could not load problem description template. A fallback is
+            used.
           </p>
         )}
         {problems.map((p, index) => (
           <ProblemInputGroup
-            key={`problem-${index}`}
+            key={p.id || `fallback-problem-${index}`}
             problem={p}
             index={index}
             onChange={updateProblem}
-            onRemove={removeProblem}
-            isSaving={isLoading}
+            onRemove={() => removeProblem(p.id)}
+            isSaving={isLoading || isImporting}
           />
         ))}
         <button
           type="button"
           onClick={addProblem}
           className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md p-3 w-full justify-center hover:border-blue-500 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-70"
-          disabled={isLoading || (!templateContent && !templateError)}
+          disabled={
+            isLoading || isImporting || (!templateContent && !templateError)
+          }
         >
           <FiPlus size={16} /> Add Problem
         </button>
@@ -724,17 +898,19 @@ const CreateContestForm = () => {
           type="button"
           onClick={() => router.back()}
           className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-800 focus:ring-gray-400"
-          disabled={isLoading}
+          disabled={isLoading || isImporting}
         >
           Cancel
         </button>
         <button
           type="submit"
           className="px-6 py-2 border border-transparent rounded shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-800 focus:ring-indigo-500 disabled:opacity-50 flex items-center gap-2"
-          disabled={isLoading}
+          disabled={isLoading || isImporting}
         >
-          {isLoading && <FiLoader className="animate-spin h-4 w-4" />}{" "}
-          {isLoading ? "Creating Contest..." : "Create Contest"}
+          {(isLoading || isImporting) && (
+            <FiLoader className="animate-spin h-4 w-4" />
+          )}{" "}
+          {isLoading || isImporting ? "Processing..." : "Create Contest"}
         </button>
       </div>
     </form>
