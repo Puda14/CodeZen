@@ -162,6 +162,10 @@ export class LeaderboardService {
   ): Promise<LeaderboardStatus> {
     return this.contestService.getContestLeaderboardStatus(contestId);
   }
+
+  async deleteLeaderboardCache(contestId: string): Promise<void> {
+    this.leaderboardCacheService.deleteLeaderboard(contestId);
+  }
 }
 
 interface LeaderboardWithStatus extends InitLeaderboardDto {
