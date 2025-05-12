@@ -4,7 +4,7 @@ import { Cache } from 'cache-manager';
 
 @Injectable()
 export class ContestCacheService {
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) { }
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
   async onModuleInit() {
     console.log('🔍 Testing Redis Cache...');
 
@@ -28,14 +28,23 @@ export class ContestCacheService {
     return null;
   }
 
-  async setCachedContest(contestId: string, contestData: any, ttl: number = 600): Promise<void> {
+  async setCachedContest(
+    contestId: string,
+    contestData: any,
+    ttl: number = 600,
+  ): Promise<void> {
     try {
       const cacheKey = `contest_${contestId}`;
-      console.log(`Setting cache for key "${cacheKey}" with TTL ${ttl} seconds`);
+      console.log(
+        `Setting cache for key "${cacheKey}" with TTL ${ttl} seconds`,
+      );
       await this.cacheManager.set(cacheKey, contestData);
       console.log(`💾 Successfully cached contest "${cacheKey}"`);
     } catch (error) {
-      console.error(`❌ Failed to cache contest "${contestId}":`, error.message);
+      console.error(
+        `❌ Failed to cache contest "${contestId}":`,
+        error.message,
+      );
       throw error;
     }
   }

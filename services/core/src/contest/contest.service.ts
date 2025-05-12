@@ -218,6 +218,10 @@ export class ContestService {
     }
 
     await contest.save();
+
+    if (contest.status === ContestStatus.ONGOING) {
+      await this.updateContestCache(contestId);
+    }
   }
 
   async getContestRegistrations(
@@ -402,6 +406,10 @@ export class ContestService {
 
     await contest.save();
 
+    if (contest.status === ContestStatus.ONGOING) {
+      await this.updateContestCache(contestId);
+    }
+
     return { results };
   }
 
@@ -477,6 +485,7 @@ export class ContestService {
       );
       await this.contestQueueService.scheduleContest(updatedContest);
       await this.leaderboardService.deleteIfExist(contestId);
+      await this.leaderboardService.deleteLeaderboardCache(contestId);
       console.log(
         `✅ Contest ${contestId} reverted to UPCOMING and rescheduled`,
       );
