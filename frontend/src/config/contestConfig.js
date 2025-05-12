@@ -9,3 +9,9 @@ export const testcaseTimeoutLimits = {
   max: 5,
   default: 1,
 };
+
+export const testcaseScoreLimits = {
+  min: 1,
+  max: 100,
+  default: 10,
+};
