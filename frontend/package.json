@@ -15,6 +15,7 @@
     "axios": "^1.7.9",
     "date-fns": "^4.1.0",
     "express": "^4.21.2",
+    "file-saver": "^2.0.5",
     "framer-motion": "^12.6.5",
     "github-markdown-css": "^5.8.1",
     "js-cookie": "^3.0.5",

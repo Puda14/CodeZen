@@ -9,7 +9,7 @@ services:
       - frontend
       - core-service
       - code-manager-service
-      - chatbot-service
+      - gen-testcase-service
     networks:
       - app-network
 
@@ -178,14 +178,28 @@ services:
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
       - INTERNAL_API_KEY=your-very-secret-internal-key
 
-  chatbot-service:
-    build: ./services/chatbot
+  ollama-proxy:
+    image: alpine/socat
+    command: TCP-LISTEN:11434,fork,reuseaddr TCP:172.17.0.1:11434
+    networks:
+      - app-network
+
+  gen-testcase-service:
+    build: ./services/gen_testcase
+    volumes:
+      - ./services/gen_testcase:/app
     ports:
       - "8003:8003"
     networks:
       - app-network
+    env_file:
+      - .env
     environment:
-      - MONGO_URL=mongodb://root:password@mongo:27017/?replicaSet=rs0
+      - OLLAMA_ENDPOINT=http://ollama-proxy:11434
+      - OLLAMA_HOST=http://ollama-proxy:11434
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - INTERNAL_API_KEY=your-very-secret-internal-key
+      - JWT_SECRET=your-secret-key
 
 volumes:
   mongo-data:

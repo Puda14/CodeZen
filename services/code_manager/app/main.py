@@ -62,8 +62,8 @@ def handle_task(queue_name: str, task_type: str, request: CodeExecutionRequest, 
 
 @app.post("/execute", status_code=200)
 async def execute_code_endpoint(
-    request: CodeExecutionRequest,
-    user=Depends(jwt_auth_dependency),
+  request: CodeExecutionRequest,
+  user=Depends(jwt_auth_dependency),
 ):
   """
   API endpoint to enqueue a code execution task and return the result.
