@@ -51,6 +51,12 @@ const Header = () => {
             >
               Contests
             </Link>
+            <Link
+              href="/tools/testcase-generator"
+              className="text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-white"
+            >
+              Tools
+            </Link>
           </div>
 
           {/* Right-side buttons */}

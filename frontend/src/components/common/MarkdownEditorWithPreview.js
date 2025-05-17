@@ -90,8 +90,12 @@ const MarkdownEditorWithPreview = ({
           />
         ) : (
           <div
-            className="markdown-body p-4 bg-gray-50 dark:bg-gray-800"
-            style={{ minHeight: minHeight }}
+            className="markdown-body p-4 bg-gray-50 dark:bg-gray-800 overflow-auto"
+            style={{
+              minHeight: minHeight,
+              maxHeight: minHeight,
+              overflow: "auto",
+            }}
           >
             <ReactMarkdown
               remarkPlugins={[remarkMath]}
