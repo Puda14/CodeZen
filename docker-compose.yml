@@ -40,6 +40,11 @@ services:
     volumes:
       - mongo-data:/data/db
       - ./mongo-keyfile:/etc/mongo-keyfile
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: password
@@ -129,6 +134,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      mongo:
+        condition: service_healthy
     volumes:
       - ./services/core:/usr/src/app
       - /usr/src/app/node_modules
@@ -198,6 +205,24 @@ services:
       - OLLAMA_ENDPOINT=http://ollama-proxy:11434
       - OLLAMA_HOST=http://ollama-proxy:11434
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - INTERNAL_API_KEY=your-very-secret-internal-key
+      - JWT_SECRET=your-secret-key
+
+  check-code-service:
+    build: ./services/check_code
+    volumes:
+      - ./services/check_code:/app
+    ports:
+      - "8004:8004"
+    networks:
+      - app-network
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_ENDPOINT=http://ollama-proxy:11434
+      - OLLAMA_HOST=http://ollama-proxy:11434
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - HF_API_KEY=${HF_API_KEY}
       - INTERNAL_API_KEY=your-very-secret-internal-key
       - JWT_SECRET=your-secret-key
 

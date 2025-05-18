@@ -221,6 +221,7 @@ export class ContestService {
 
     if (contest.status === ContestStatus.ONGOING) {
       await this.updateContestCache(contestId);
+      await this.leaderboardService.syncLeaderboardFromRegistrations(contestId);
     }
   }
 
@@ -408,6 +409,7 @@ export class ContestService {
 
     if (contest.status === ContestStatus.ONGOING) {
       await this.updateContestCache(contestId);
+      await this.leaderboardService.syncLeaderboardFromRegistrations(contestId);
     }
 
     return { results };

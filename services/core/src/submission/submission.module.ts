@@ -6,6 +6,8 @@ import { SubmissionController } from './submission.controller';
 import { ContestModule } from '../contest/contest.module';
 import { ProblemModule } from '../problem/problem.module';
 import { AuthModule } from '../auth/auth.module';
+import { HttpModule } from '@nestjs/axios';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { AuthModule } from '../auth/auth.module';
     ContestModule,
     ProblemModule,
     AuthModule,
+    HttpModule,
+    ConfigModule,
   ],
   controllers: [SubmissionController],
   providers: [SubmissionService],

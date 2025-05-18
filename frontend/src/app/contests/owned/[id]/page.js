@@ -12,6 +12,7 @@ import {
   FiFileText,
   FiAlertTriangle,
   FiPieChart,
+  FiGitMerge,
 } from "react-icons/fi";
 import api from "@/utils/coreApi";
 import ContestInfo from "@/components/contest/owner/ContestInfo";
@@ -20,6 +21,7 @@ import ProblemList from "@/components/contest/owner/ProblemList";
 import OwnerLeaderboard from "@/components/contest/owner/OwnerLeaderboard";
 import OwnerSubmissionsList from "@/components/contest/owner/OwnerSubmissionsList";
 import ContestAnalyticsTab from "@/components/contest/owner/ContestAnalyticsTab";
+import ContestCheckCodeTab from "@/components/contest/owner/ContestCheckCodeTab";
 
 const TABS = [
   { name: "Settings", icon: FiSettings },
@@ -28,6 +30,7 @@ const TABS = [
   { name: "Leaderboard", icon: FiBarChart2 },
   { name: "Submissions", icon: FiFileText },
   { name: "Analytics", icon: FiPieChart },
+  { name: "Check Code", icon: FiGitMerge },
 ];
 
 const ContestDetailOwnerPage = () => {
@@ -235,6 +238,16 @@ const ContestDetailOwnerPage = () => {
             aria-labelledby="tab-analytics"
           >
             <ContestAnalyticsTab contestId={contestId} />
+          </div>
+        )}
+
+        {activeTab === "Check Code" && (
+          <div
+            role="tabpanel"
+            id="tabpanel-check-code"
+            aria-labelledby="tab-check-code"
+          >
+            <ContestCheckCodeTab contestId={contestId} />
           </div>
         )}
       </div>

@@ -157,4 +157,21 @@ export class LeaderboardCacheService {
       );
     }
   }
+
+  async setLeaderboard(
+    contestId: string,
+    data: InitLeaderboardDto,
+  ): Promise<void> {
+    const key = `leaderboard_${contestId}`;
+    try {
+      await this.cacheManager.set(key, data);
+      this.logger.log(`Set leaderboard cache for contest ${contestId}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to set leaderboard for ${contestId}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
 }

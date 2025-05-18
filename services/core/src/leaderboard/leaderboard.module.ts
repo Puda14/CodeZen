@@ -6,6 +6,7 @@ import { LeaderboardController } from './leaderboard.controller';
 import { LeaderboardCacheService } from './cache/leaderboard.cache.service';
 import { LeaderboardGateway } from './leaderboard.gateway';
 import { ContestModule } from '../contest/contest.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ContestModule } from '../contest/contest.module';
       { name: Leaderboard.name, schema: LeaderboardSchema },
     ]),
     forwardRef(() => ContestModule),
+    UserModule,
   ],
   providers: [LeaderboardService, LeaderboardCacheService, LeaderboardGateway],
   controllers: [LeaderboardController],
