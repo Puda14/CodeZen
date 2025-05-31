@@ -1004,6 +1004,7 @@ export class ContestService {
         content: problem.content,
         difficulty: problem.difficulty,
         tags: problem.tags,
+        maxSubmissions: problem.maxSubmissions,
         testcases:
           problem.testcases?.map((tc) =>
             tc.isPublic
