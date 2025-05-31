@@ -28,7 +28,6 @@ const useFetchProblem = (contestId, problemId) => {
             setProblemData(response.data);
           }
         } catch (err) {
-          console.error("Error loading problem data:", err);
           const errorMsg =
             err.response?.data?.message ||
             err.message ||

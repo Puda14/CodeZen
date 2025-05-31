@@ -34,9 +34,7 @@ const MonacoCodeEditor = ({
     try {
       await handleFileUpload(e, setCodeFromHook);
       e.target.value = null;
-    } catch (error) {
-      console.error("Error handling file upload:", error);
-    }
+    } catch (error) {}
   };
 
   const currentConfig =

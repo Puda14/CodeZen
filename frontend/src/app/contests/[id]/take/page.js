@@ -54,7 +54,6 @@ const ContestTakePage = () => {
             setActiveContestId(contestId);
           }
         } catch (err) {
-          console.error("Failed to fetch contest details:", err);
           if (isActive) {
             setError(
               err.response?.data?.message || "Failed to load contest details."

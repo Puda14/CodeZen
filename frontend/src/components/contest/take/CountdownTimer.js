@@ -19,7 +19,6 @@ const CountdownTimer = ({ endTime }) => {
 
     const endTimeDate = new Date(endTime);
     if (isNaN(endTimeDate.getTime())) {
-      console.error("Invalid end time provided to CountdownTimer:", endTime);
       setTimeLeft((prev) => ({ ...prev, ended: true }));
       return;
     }

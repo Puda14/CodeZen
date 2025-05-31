@@ -140,7 +140,6 @@ const LeaderboardTable = ({
           setRawLeaderboardData(response.data);
           setLoading(false);
         } catch (err) {
-          console.error("❌ Failed to fetch frozen leaderboard snapshot", err);
           setError("Failed to load frozen leaderboard.");
           setLoading(false);
         }

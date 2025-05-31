@@ -313,7 +313,6 @@ const ContestAnalyticsTab = ({ contestId }) => {
         );
         setAnalyticsData(processedData);
       } catch (err) {
-        console.error("Failed to fetch analytics data:", err);
         setError(
           err.response?.data?.message || "Failed to load analytics data."
         );

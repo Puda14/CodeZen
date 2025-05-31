@@ -253,7 +253,6 @@ const AddTestcasesModal = ({
         );
       }
     } catch (error) {
-      console.error("Failed to add testcases:", error);
       const errorMessage =
         error.response?.data?.message ||
         error.message ||

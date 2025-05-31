@@ -49,7 +49,6 @@ const ContestDetailOwnerPage = () => {
       const res = await api.get(`/contest/${contestId}/owner`);
       setContest(res.data);
     } catch (err) {
-      console.error("Failed to fetch contest owner data:", err);
       if (err.response?.status === 404 || err.response?.status === 403) {
         setError("Contest not found or access denied.");
       } else {

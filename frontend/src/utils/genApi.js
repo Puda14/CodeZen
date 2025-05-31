@@ -51,12 +51,6 @@ export const generateTestcasesStream = async (
             const jsonObject = JSON.parse(buffer.trim());
             if (onData) onData(jsonObject);
           } catch (e) {
-            console.error(
-              "Error parsing final JSON object from stream:",
-              e,
-              "Buffer:",
-              buffer
-            );
             if (onError)
               onError(new Error("Error parsing final JSON from stream."));
           }
@@ -86,7 +80,6 @@ export const generateTestcasesStream = async (
     }
     if (onComplete) onComplete();
   } catch (error) {
-    console.error("Error in generateTestcasesStream:", error);
     if (onError) onError(error);
   }
 };
@@ -96,7 +89,6 @@ export const executeGeneratedTestcases = async (payload) => {
     const response = await genApi.post("/testcases/execute", payload);
     return response.data;
   } catch (error) {
-    console.error("Error in executeGeneratedTestcases:", error);
     const errorMessage =
       error.response?.data?.message ||
       error.message ||

@@ -32,12 +32,6 @@ const formatUtcToLocalInputString = (isoUtcString) => {
     const minutes = date.getMinutes().toString().padStart(2, "0");
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   } catch (error) {
-    console.error(
-      "Error formatting UTC to Local Input String:",
-      error,
-      "Input:",
-      isoUtcString
-    );
     return "";
   }
 };
@@ -49,12 +43,6 @@ const formatLocalInputStringToUtc = (localDateTimeString) => {
     if (isNaN(date.getTime())) throw new Error("Invalid date");
     return date.toISOString();
   } catch (error) {
-    console.error(
-      "Error formatting Local Input String to UTC:",
-      error,
-      "Input:",
-      localDateTimeString
-    );
     return null;
   }
 };

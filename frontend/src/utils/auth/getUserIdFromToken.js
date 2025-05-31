@@ -9,7 +9,6 @@ export const getUserIdFromToken = () => {
     const decoded = jwtDecode(token);
     return decoded?._id || null;
   } catch (err) {
-    console.error("Failed to decode token", err);
     return null;
   }
 };

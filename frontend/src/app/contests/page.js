@@ -42,11 +42,9 @@ const ContestsPage = () => {
       if (activeTab === "Public") {
         const [upcomingRes, ongoingRes] = await Promise.all([
           api.get("/contest/status/upcoming").catch((err) => {
-            console.error("Error fetching upcoming:", err);
             return { data: [] };
           }),
           api.get("/contest/status/ongoing").catch((err) => {
-            console.error("Error fetching ongoing:", err);
             return { data: [] };
           }),
         ]);
@@ -75,7 +73,6 @@ const ContestsPage = () => {
       }
       setContests(data);
     } catch (err) {
-      console.error("Failed to fetch contests:", err);
       const status = err.response?.status;
       const message =
         err.response?.data?.message ||

@@ -56,12 +56,7 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
           const text = await response.text();
           setContent(text);
         }
-      } catch (error) {
-        console.error(
-          "Could not fetch problem template for default content:",
-          error
-        );
-      }
+      } catch (error) {}
     };
     fetchTemplate();
   }, []);
@@ -261,7 +256,6 @@ const CreateProblemForm = ({ onProblemCreated, onCancel }) => {
         throw new Error(response.data?.message || "Problem creation failed.");
       }
     } catch (error) {
-      console.error("Failed to create problem:", error);
       const errorMessage =
         error.response?.data?.message ||
         error.message ||

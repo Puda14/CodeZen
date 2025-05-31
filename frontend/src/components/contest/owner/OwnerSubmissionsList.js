@@ -216,7 +216,6 @@ const OwnerSubmissionsList = ({ contestId }) => {
         const res = await api.get(`/submission/owner?contest=${contestId}`);
         setAllSubmissionsData(res.data || []);
       } catch (err) {
-        console.error("Failed to fetch owner submissions:", err);
         setError(err.response?.data?.message || "Failed to load submissions.");
       } finally {
         setLoading(false);

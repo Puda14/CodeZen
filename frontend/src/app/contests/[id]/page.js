@@ -20,7 +20,6 @@ const ContestDetailPage = () => {
 
         setContest(data);
       } catch (err) {
-        console.error("Failed to fetch contest:", err);
         router.push("/contests");
       } finally {
         setLoading(false);

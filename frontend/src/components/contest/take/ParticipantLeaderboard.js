@@ -43,10 +43,6 @@ const ParticipantLeaderboard = ({ contestId }) => {
         })
         .catch((err) => {
           if (isActive) {
-            console.error(
-              `ParticipantLeaderboard: Failed to fetch status for ${contestId}:`,
-              err
-            );
             setStatusError(
               err.response?.data?.message ||
                 "Failed to load leaderboard status."

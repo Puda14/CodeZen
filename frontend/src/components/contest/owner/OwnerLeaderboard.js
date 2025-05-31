@@ -52,7 +52,6 @@ const OwnerLeaderboard = ({ contestId }) => {
         setFetchStatusError("Could not verify current status from server.");
       }
     } catch (err) {
-      console.error("Failed to fetch leaderboard status:", err);
       setCurrentOfficialStatus(LeaderboardStatus.OPEN);
       setFetchStatusError(
         err.response?.data?.message ||
@@ -156,7 +155,6 @@ const OwnerLeaderboard = ({ contestId }) => {
         showToast("CSV download is not supported in your browser.", "error");
       }
     } catch (err) {
-      console.error("Failed to download leaderboard CSV:", err);
       showToast(
         err.response?.data?.message || "Failed to download leaderboard data.",
         "error"
@@ -189,10 +187,6 @@ const OwnerLeaderboard = ({ contestId }) => {
         { duration: 5000 }
       );
     } catch (err) {
-      console.error(
-        `Failed to change leaderboard status to ${newStatus}:`,
-        err
-      );
       showToast(
         err.response?.data?.message ||
           `Failed to change status to ${newStatus}. Please try again.`,
