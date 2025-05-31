@@ -16,6 +16,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { LeaderboardCacheService } from './cache/leaderboard.cache.service';
+import { LeaderboardService } from './leaderboard.service';
 import { InitLeaderboardDto } from './dto/leaderboard.dto';
 // import { WsJwtAuthGuard } from '../auth/ws-jwt-auth.guard';
 // import { AuthService } from '../auth/auth.service';
@@ -40,6 +41,9 @@ export class LeaderboardGateway
   constructor(
     @Inject(forwardRef(() => LeaderboardCacheService))
     private readonly leaderboardCacheService: LeaderboardCacheService,
+    @Inject(forwardRef(() => LeaderboardService))
+    private readonly leaderboardService: LeaderboardService,
+
     // @Inject(forwardRef(() => AuthService))
     // private readonly authService: AuthService,
   ) {}
@@ -73,7 +77,7 @@ export class LeaderboardGateway
 
     try {
       const currentLeaderboard =
-        await this.leaderboardCacheService.getLeaderboard(contestId);
+        await this.leaderboardService.getLeaderboardByContestId(contestId);
       if (currentLeaderboard) {
         client.emit('leaderboard_update', currentLeaderboard);
         this.logger.log(

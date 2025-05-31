@@ -25,6 +25,7 @@ export class LeaderboardService {
 
     @Inject(forwardRef(() => ContestService))
     private readonly contestService: ContestService,
+    @Inject(forwardRef(() => LeaderboardGateway))
     private readonly leaderboardGateway: LeaderboardGateway,
   ) {}
 
@@ -92,7 +93,7 @@ export class LeaderboardService {
     if (leaderboard) return leaderboard;
 
     const mongoLeaderboard = await this.leaderboardModel
-      .findOne({ contestId })
+      .findOne({ contestId: contestId.toString() })
       .lean();
     if (!mongoLeaderboard) return null;
 
