@@ -167,7 +167,7 @@ const ContestInfo = ({ contest, onContestUpdated }) => {
     try {
       await api.delete(`/contest/${contest._id}`);
       showToast("Contest deleted successfully", "success");
-      router.push("/contests/owned");
+      router.push("/contests");
       router.refresh();
     } catch (err) {
       const msg =
