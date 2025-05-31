@@ -1,4 +1,5 @@
 import { time } from 'console';
+import { Leaderboard } from 'src/leaderboard/leaderboard.schema';
 
 export const AppConfig = {
   problem: {
@@ -13,5 +14,9 @@ export const AppConfig = {
       min: 1,
       max: 5,
     },
+  },
+  cache: {
+    contestTtl: 6000000, //seconds
+    LeaderboardTtl: 6000000, //seconds
   },
 };

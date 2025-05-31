@@ -28,7 +28,7 @@ import { LeaderboardService } from '../leaderboard/leaderboard.service';
 import { UserDocument } from 'src/user/user.schema';
 import { InitLeaderboardDto } from '../leaderboard/dto/leaderboard.dto';
 import { LeaderboardStatus } from '../common/enums/contest.enum';
-import { time } from 'console';
+import { AppConfig } from '../config/app.config';
 
 @Injectable()
 export class ContestService {
@@ -1065,7 +1065,7 @@ export class ContestService {
       await this.contestCacheService.setCachedContest(
         contestId,
         fullContestDetails,
-        6000000,
+        AppConfig.cache.contestTtl,
       );
     } else {
       console.log(
