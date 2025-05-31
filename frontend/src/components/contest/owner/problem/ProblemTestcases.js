@@ -55,7 +55,6 @@ const ProblemTestcases = ({ problemId }) => {
       setTestcases(fetchedTestcases);
       setLastSavedTestcases(JSON.parse(JSON.stringify(fetchedTestcases)));
     } catch (err) {
-      console.error("Failed to fetch testcases:", err);
       const errorMsg =
         err.response?.data?.message ||
         err.message ||
@@ -232,7 +231,6 @@ const ProblemTestcases = ({ problemId }) => {
       setShowDeleteConfirmModal(false);
       fetchTestcases();
     } catch (error) {
-      console.error("Failed to delete testcases:", error);
       const errorMessage =
         error.response?.data?.message || error.message || "Unknown error";
       toast?.(`Failed to delete testcases: ${errorMessage}`, "error");

@@ -83,7 +83,7 @@ const Header = () => {
                   <FiUser className="text-xl text-gray-800 dark:text-gray-200" />
                 </button>
                 {isUserDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50">
+                  <div className="absolute right-0 mt-2 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-[60]">
                     <Link
                       href="/profile"
                       className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"

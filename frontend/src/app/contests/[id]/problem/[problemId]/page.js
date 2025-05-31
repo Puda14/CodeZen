@@ -119,7 +119,6 @@ const ContestProblemDetailPage = () => {
             showToast("Could not load contest timer data.", "warning");
           }
         } catch (err) {
-          console.error("Failed to fetch contest end time:", err);
           if (isActive) showToast("Error loading contest timer.", "error");
         } finally {
           if (isActive) setIsLoadingEndTime(false);

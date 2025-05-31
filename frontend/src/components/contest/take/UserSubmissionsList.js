@@ -250,7 +250,6 @@ const UserSubmissions = ({ contestId }) => {
           setExpandedProblems({ [data.problems[0].problem._id]: true });
         }
       } catch (err) {
-        console.error("Failed to fetch user submissions:", err);
         setError(err.response?.data?.message || "Failed to load submissions.");
       } finally {
         setLoading(false);

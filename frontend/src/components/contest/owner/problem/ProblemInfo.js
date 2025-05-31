@@ -171,7 +171,6 @@ const ProblemInfo = ({ problem, onProblemDeleted }) => {
       toast?.(`Problem "${initialState.name}" deleted successfully`, "success");
       if (onProblemDeleted) onProblemDeleted(problem._id);
     } catch (err) {
-      console.error("Failed to delete problem:", err);
       toast?.(
         err?.response?.data?.message || "Failed to delete problem",
         "error"

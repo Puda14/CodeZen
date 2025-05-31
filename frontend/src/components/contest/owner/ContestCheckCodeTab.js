@@ -173,7 +173,6 @@ const ContestCheckCodeTab = ({ contestId }) => {
       );
       setCheckCodeData(response.data);
     } catch (err) {
-      console.error("Failed to fetch check code data:", err);
       setError(
         err.response?.data?.message ||
           "Failed to load suspicious code data. Please try again."

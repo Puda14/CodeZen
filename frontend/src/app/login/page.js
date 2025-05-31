@@ -39,7 +39,6 @@ const LoginPage = () => {
       const message =
         err.response?.data?.message || "Login failed. Check credentials.";
 
-      console.error("Login Error:", err.response?.data || err.message);
       showToast(message, "error");
     }
   };

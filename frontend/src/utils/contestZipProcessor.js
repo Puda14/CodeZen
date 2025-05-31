@@ -210,7 +210,6 @@ export const processContestZip = async (file, defaultProblemContent) => {
     parsedData.problems = await Promise.all(problemPromises);
     return { success: true, data: parsedData };
   } catch (e) {
-    console.error("Error processing contest ZIP:", e);
     return {
       success: false,
       error: e.message || "Failed to process ZIP file.",

@@ -371,7 +371,6 @@ const CreateContestForm = () => {
         const text = await response.text();
         setTemplateContent(text);
       } catch (error) {
-        console.error("Could not fetch problem template:", error);
         setTemplateError(true);
         setTemplateContent(
           `# Problem Title\n\n## Description\n\nTask description here. Be clear and concise.\n\n## Input Format\n\nDescription of the input format.\n\n## Output Format\n\nDescription of the output format.\n\n## Constraints\n\n- $1 \\le N \\le 10^5$\n- $1 \\le Q \\le 10^5$\n\n## Example\n\n### Input\n\`\`\`\nExample Input\n\`\`\`\n\n### Output\n\`\`\`\nExample Output\n\`\`\`\n\n## Notes (Optional)\n\nAny additional notes or hints.`
@@ -494,7 +493,6 @@ const CreateContestForm = () => {
         throw new Error(result.error || "Failed to parse contest package.");
       }
     } catch (error) {
-      console.error("Error importing contest from ZIP:", error);
       toast?.(`Import failed: ${error.message}`, "error");
     } finally {
       setIsImporting(false);
@@ -533,7 +531,6 @@ const CreateContestForm = () => {
       startTimeISO = startDate.toISOString();
       endTimeISO = endDate.toISOString();
     } catch (error) {
-      console.error("Error processing date/time:", error);
       toast?.("Error processing times. Please check the format.", "error");
       return;
     }
@@ -682,7 +679,6 @@ const CreateContestForm = () => {
         throw new Error(serverMessage);
       }
     } catch (error) {
-      console.error("Failed to create contest:", error);
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.error ||

@@ -52,7 +52,6 @@ const ContestDetail = ({ contest }) => {
         setRegistrationStatus(res.data.status);
       }
     } catch (err) {
-      console.error("Failed to check registration status:", err);
     } finally {
       setLoadingStatus(false);
     }
@@ -96,7 +95,6 @@ const ContestDetail = ({ contest }) => {
     const endTimeLocal = new Date(contest.end_time);
 
     if (!isValidDate(startTimeLocal) || !isValidDate(endTimeLocal)) {
-      console.error("Invalid contest start or end time");
       return (
         <p className="text-sm text-red-500 mt-6">
           Error: Invalid contest time data.

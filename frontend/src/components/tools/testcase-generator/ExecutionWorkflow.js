@@ -101,7 +101,6 @@ const ExecutionWorkflow = ({
       saveAs(zipBlob, "testcases.zip");
       showToast("testcases.zip downloaded successfully!", "success");
     } catch (error) {
-      console.error("Error generating final testcases ZIP:", error);
       showToast("Failed to download testcases.zip. Check console.", "error");
     } finally {
       setIsDownloadingExecuted(false);
