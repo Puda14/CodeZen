@@ -126,6 +126,9 @@ services:
     environment:
       - JWT_SECRET=your-secret-key
       - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
+      - MAIL_USER=${MAIL_USER}
+      - MAIL_PASS=${MAIL_PASS}
+      - APP_BASE_URL=${APP_BASE_URL}
 
   core-service:
     build: ./services/core
