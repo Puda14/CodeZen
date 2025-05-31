@@ -166,4 +166,62 @@ export class SubmissionService {
 
     return result;
   }
+
+  async getCheckSemanticCodeLight(contest: string, userId: string) {
+    const contestOwnerId = await this.contestService.getContestOwnerId(contest);
+    if (contestOwnerId !== userId) {
+      throw new ForbiddenException('Only the contest owner can view this.');
+    }
+
+    const registrations = await this.contestService.getContestRegistrations(
+      contest,
+      userId,
+    );
+
+    const approvedUsers = registrations
+      .filter((reg) => reg.status === 'approved')
+      .map((reg) => reg.user);
+
+    const problems = await this.contestService.getContestProblems(contest);
+
+    const submissions = await this.submissionModel
+      .find({ contest: new Types.ObjectId(contest) })
+      .select('_id user problem code language processor score')
+      .populate('problem', '_id name')
+      .lean();
+
+    const grouped: Record<string, Record<string, any[]>> = {};
+    for (const sub of submissions) {
+      const uid = sub.user.toString();
+      const pid = sub.problem._id.toString();
+
+      if (!grouped[uid]) grouped[uid] = {};
+      if (!grouped[uid][pid]) grouped[uid][pid] = [];
+
+      grouped[uid][pid].push({
+        _id: sub._id,
+        code: sub.code,
+        language: sub.language,
+        processor: sub.processor,
+        score: sub.score,
+      });
+    }
+
+    const result = approvedUsers.map((user) => ({
+      user: {
+        _id: user._id.toString(),
+        username: user.username,
+        email: user.email,
+      },
+      problems: problems.map((prob) => ({
+        problem: {
+          _id: prob._id.toString(),
+          name: prob.name,
+        },
+        submissions: grouped[user._id.toString()]?.[prob._id.toString()] ?? [],
+      })),
+    }));
+
+    return result;
+  }
 }

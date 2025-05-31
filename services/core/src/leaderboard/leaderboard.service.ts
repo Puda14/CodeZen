@@ -13,6 +13,7 @@ import { InitLeaderboardDto } from './dto/leaderboard.dto';
 import { LeaderboardStatus } from '../common/enums/contest.enum';
 import { ContestService } from '../contest/contest.service';
 import { LeaderboardGateway } from './leaderboard.gateway';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class LeaderboardService {
@@ -20,6 +21,7 @@ export class LeaderboardService {
     @InjectModel(Leaderboard.name)
     private leaderboardModel: Model<LeaderboardDocument>,
     private readonly leaderboardCacheService: LeaderboardCacheService,
+    private readonly userService: UserService,
 
     @Inject(forwardRef(() => ContestService))
     private readonly contestService: ContestService,
@@ -165,6 +167,68 @@ export class LeaderboardService {
 
   async deleteLeaderboardCache(contestId: string): Promise<void> {
     this.leaderboardCacheService.deleteLeaderboard(contestId);
+  }
+
+  async syncLeaderboardFromRegistrations(contestId: string): Promise<void> {
+    const ownerId = await this.contestService.getContestOwnerId(contestId);
+
+    const registrations = await this.contestService.getContestRegistrations(
+      contestId,
+      ownerId,
+    );
+
+    const problems = await this.contestService.getContestProblems(contestId);
+    if (!Array.isArray(problems)) {
+      throw new NotFoundException(
+        `Cannot retrieve problems for contest ${contestId}`,
+      );
+    }
+
+    const leaderboard = (await this.leaderboardCacheService.getLeaderboard(
+      contestId,
+    )) ?? {
+      contestId,
+      users: [],
+    };
+
+    const existingUserIds = new Set(
+      leaderboard.users.map((u) => u.user._id.toString()),
+    );
+
+    const newUsers = registrations
+      .filter(
+        (r) =>
+          r.status === 'approved' &&
+          r.user &&
+          typeof r.user === 'object' &&
+          !existingUserIds.has(r.user._id.toString()),
+      )
+      .map((r) => ({
+        _id: r.user._id.toString(),
+        username: r.user.username,
+        email: r.user.email,
+      }));
+
+    if (newUsers.length === 0) return;
+
+    const problemList = problems.map((p, i) => ({
+      p: `P${(i + 1).toString().padStart(2, '0')}`,
+      problemId: p._id.toString(),
+      score: 0,
+    }));
+
+    for (const user of newUsers) {
+      leaderboard.users.push({
+        user,
+        totalScore: 0,
+        problems: [...problemList],
+      });
+    }
+
+    leaderboard.users.sort((a, b) => b.totalScore - a.totalScore);
+
+    await this.leaderboardCacheService.setLeaderboard(contestId, leaderboard);
+    this.leaderboardGateway.emitLeaderboardUpdate(contestId, leaderboard);
   }
 }
 
