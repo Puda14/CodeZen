@@ -16,6 +16,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { LeaderboardCacheService } from './cache/leaderboard.cache.service';
+import { LeaderboardService } from './leaderboard.service';
 import { InitLeaderboardDto } from './dto/leaderboard.dto';
 // import { WsJwtAuthGuard } from '../auth/ws-jwt-auth.guard';
 // import { AuthService } from '../auth/auth.service';
@@ -40,6 +41,9 @@ export class LeaderboardGateway
   constructor(
     @Inject(forwardRef(() => LeaderboardCacheService))
     private readonly leaderboardCacheService: LeaderboardCacheService,
+    @Inject(forwardRef(() => LeaderboardService))
+    private readonly leaderboardService: LeaderboardService,
+
     // @Inject(forwardRef(() => AuthService))
     // private readonly authService: AuthService,
   ) {}
@@ -55,41 +59,31 @@ export class LeaderboardGateway
 
   @SubscribeMessage('join_leaderboard_room')
   async handleJoinRoom(
-    @MessageBody() contestId: string,
+    @MessageBody()
+    payload: { contestId: string; role: 'owner' | 'participant' },
     @ConnectedSocket() client: Socket,
   ): Promise<void> {
-    if (!contestId || typeof contestId !== 'string') {
-      this.logger.warn(
-        `Client ${client.id} tried to join room with invalid contestId: ${contestId}`,
-      );
+    const { contestId, role } = payload;
+    if (!contestId || !['owner', 'participant'].includes(role)) {
       client.emit('leaderboard_error', {
-        message: 'Invalid contest ID provided.',
+        message: 'Invalid contestId or role',
       });
       return;
     }
-    const roomName = `leaderboard_${contestId}`;
+
+    const roomName = `leaderboard_${contestId}_${role}`;
     client.join(roomName);
     this.logger.log(`Client ${client.id} joined room: ${roomName}`);
 
     try {
       const currentLeaderboard =
-        await this.leaderboardCacheService.getLeaderboard(contestId);
+        await this.leaderboardService.getLeaderboardByContestId(contestId);
       if (currentLeaderboard) {
         client.emit('leaderboard_update', currentLeaderboard);
-        this.logger.log(
-          `Sent initial leaderboard data to ${client.id} for room ${roomName}`,
-        );
       } else {
-        this.logger.log(
-          `No initial leaderboard data found for room ${roomName}`,
-        );
         client.emit('leaderboard_update', { contestId, users: [] });
       }
     } catch (error) {
-      this.logger.error(
-        `Failed to get initial leaderboard for ${roomName}`,
-        error.stack,
-      );
       client.emit('leaderboard_error', {
         message: 'Could not load initial leaderboard data.',
       });
@@ -107,32 +101,45 @@ export class LeaderboardGateway
     this.logger.log(`Client ${client.id} left room: ${roomName}`);
   }
 
-  emitLeaderboardUpdate(
+  async emitLeaderboardUpdate(
     contestId: string,
     leaderboardData: InitLeaderboardDto,
-  ): void {
-    if (!contestId || !leaderboardData) {
-      this.logger.warn(
-        `Attempted to emit update with invalid data for contest ${contestId}`,
+  ): Promise<void> {
+    const roomOwner = `leaderboard_${contestId}_owner`;
+    const roomParticipant = `leaderboard_${contestId}_participant`;
+
+    this.server.to(roomOwner).emit('leaderboard_update', leaderboardData);
+
+    const status =
+      await this.leaderboardService.getContestLeaderboardStatus(contestId);
+    if (status === LeaderboardStatus.OPEN) {
+      this.server
+        .to(roomParticipant)
+        .emit('leaderboard_update', leaderboardData);
+    } else {
+      this.logger.log(
+        `Leaderboard is ${status}, not emitting to participants (contest ${contestId})`,
       );
-      return;
     }
-    const roomName = `leaderboard_${contestId}`;
-    this.server.to(roomName).emit('leaderboard_update', leaderboardData);
-    this.logger.log(`Emitted leaderboard update to room: ${roomName}`);
   }
 
   emitLeaderboardStatusUpdate(
     contestId: string,
     newStatus: LeaderboardStatus,
   ): void {
-    const roomName = `leaderboard_${contestId}`;
-    this.server.to(roomName).emit('leaderboard_status_update', {
-      contestId: contestId,
+    const roomParticipant = `leaderboard_${contestId}_participant`;
+    const roomOwner = `leaderboard_${contestId}_owner`;
+
+    const payload = {
+      contestId,
       status: newStatus,
-    });
+    };
+
+    this.server.to(roomParticipant).emit('leaderboard_status_update', payload);
+    this.server.to(roomOwner).emit('leaderboard_status_update', payload);
+
     this.logger.log(
-      `Emitted leaderboard status update to room: ${roomName} with contestId`,
+      `Emitted leaderboard status update to both participant and owner rooms for contest ${contestId}`,
     );
   }
 }

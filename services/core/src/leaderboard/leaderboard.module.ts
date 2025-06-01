@@ -18,6 +18,6 @@ import { UserModule } from '../user/user.module';
   ],
   providers: [LeaderboardService, LeaderboardCacheService, LeaderboardGateway],
   controllers: [LeaderboardController],
-  exports: [LeaderboardService],
+  exports: [LeaderboardService, LeaderboardGateway],
 })
 export class LeaderboardModule {}

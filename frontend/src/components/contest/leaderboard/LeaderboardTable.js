@@ -42,6 +42,8 @@ const LeaderboardTable = ({
   leaderboardStatus: initialLeaderboardStatus = LeaderboardStatus.OPEN,
   ignoreStatusUpdates = false,
   linkProblemHeaders = true,
+  userRole = "participant", // 'participant' or 'owner'
+  waitForStatusInit,
 }) => {
   const [rawLeaderboardData, setRawLeaderboardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -132,7 +134,7 @@ const LeaderboardTable = ({
   }, [initialLeaderboardStatus, contestId]);
   useEffect(() => {
     if (currentStatus === LeaderboardStatus.FROZEN && !ignoreStatusUpdates) {
-      // Khi frozen: fetch snapshot 1 lần qua API
+      // When frozen: fetch snapshot 1 time via API
       const fetchFrozenSnapshot = async () => {
         try {
           setLoading(true);
@@ -164,11 +166,13 @@ const LeaderboardTable = ({
     setUpdatedEntries({});
     setIsConnected(socket.connected);
 
+    const joinPayload = { contestId, role: userRole };
+
     // --- WebSocket Event Handlers ---
     const handleConnect = () => {
       setIsConnected(true);
       setError(null);
-      socket.emit("join_leaderboard_room", contestId);
+      socket.emit("join_leaderboard_room", joinPayload);
     };
     const handleDisconnect = (reason) => {
       setIsConnected(false);
@@ -217,7 +221,7 @@ const LeaderboardTable = ({
       socket.auth = { token };
       socket.connect();
     } else {
-      socket.emit("join_leaderboard_room", contestId);
+      socket.emit("join_leaderboard_room", joinPayload);
     }
 
     // Register listeners
