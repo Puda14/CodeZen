@@ -476,6 +476,13 @@ export class ContestService {
       });
       await this.contestCacheService.deleteCachedContest(contestId);
 
+      const refreshedContest = await this.contestModel.findById(contestId);
+      if (!refreshedContest) {
+        throw new NotFoundException(
+          `Contest ${contestId} not found after reverting`,
+        );
+      }
+
       const jobs =
         await this.contestQueueService.getDelayedJobsForContest(contestId);
       await Promise.all(
@@ -485,7 +492,7 @@ export class ContestService {
             : Promise.resolve(),
         ),
       );
-      await this.contestQueueService.scheduleContest(updatedContest);
+      await this.contestQueueService.scheduleContest(refreshedContest);
       await this.leaderboardService.deleteIfExist(contestId);
       await this.leaderboardService.deleteLeaderboardCache(contestId);
       console.log(
