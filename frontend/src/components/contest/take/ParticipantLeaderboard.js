@@ -80,6 +80,8 @@ const ParticipantLeaderboard = ({ contestId }) => {
       <LeaderboardTable
         contestId={contestId}
         leaderboardStatus={initialStatus ?? "open"}
+        userRole="participant"
+        waitForStatusInit={true}
       />
     </div>
   );

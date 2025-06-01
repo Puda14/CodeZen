@@ -174,4 +174,24 @@ export class LeaderboardCacheService {
       throw error;
     }
   }
+
+  async setLeaderboardSnapshot(
+    contestId: string,
+    data: InitLeaderboardDto,
+  ): Promise<void> {
+    const key = `leaderboard_${contestId}_snapshot`;
+    await this.cacheManager.set(key, data);
+  }
+
+  async getLeaderboardSnapshot(
+    contestId: string,
+  ): Promise<InitLeaderboardDto | null> {
+    const key = `leaderboard_${contestId}_snapshot`;
+    return this.cacheManager.get<InitLeaderboardDto>(key);
+  }
+
+  async deleteLeaderboardSnapshot(contestId: string): Promise<void> {
+    const key = `leaderboard_${contestId}_snapshot`;
+    await this.cacheManager.del(key);
+  }
 }

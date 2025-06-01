@@ -317,6 +317,7 @@ const OwnerLeaderboard = ({ contestId }) => {
         leaderboardStatus={LeaderboardStatus.OPEN}
         ignoreStatusUpdates={true}
         linkProblemHeaders={false}
+        userRole="owner"
       />
     </div>
   );

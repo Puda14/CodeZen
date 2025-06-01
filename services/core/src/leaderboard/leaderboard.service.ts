@@ -88,6 +88,13 @@ export class LeaderboardService {
   async getLeaderboardByContestId(
     contestId: string,
   ): Promise<InitLeaderboardDto | null> {
+    const status = await this.getContestLeaderboardStatus(contestId);
+    if (status === LeaderboardStatus.FROZEN) {
+      const snapshot =
+        await this.leaderboardCacheService.getLeaderboardSnapshot(contestId);
+      if (snapshot) return snapshot ?? { contestId, users: [] };
+    }
+
     let leaderboard =
       await this.leaderboardCacheService.getLeaderboard(contestId);
     if (leaderboard) return leaderboard;
@@ -153,6 +160,22 @@ export class LeaderboardService {
       userId,
       newStatus,
     );
+
+    if (newStatus === LeaderboardStatus.FROZEN) {
+      const current =
+        await this.leaderboardCacheService.getLeaderboard(contestId);
+      if (current) {
+        await this.leaderboardCacheService.setLeaderboardSnapshot(
+          contestId,
+          current,
+        );
+      }
+    } else if (
+      newStatus === LeaderboardStatus.OPEN ||
+      newStatus === LeaderboardStatus.CLOSED
+    ) {
+      await this.leaderboardCacheService.deleteLeaderboardSnapshot(contestId);
+    }
 
     // 👉 Emit websocket update
     this.leaderboardGateway.emitLeaderboardStatusUpdate(contestId, newStatus);
