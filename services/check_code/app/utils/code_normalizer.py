@@ -7,9 +7,19 @@ class NormalizedCode(BaseModel):
 
 
 NORMALIZATION_PROMPT = (
-  "You are a code cleaner. Given any source code string, return the same code "
-  "but with ALL comments removed (line comments, block comments, inline comments) and unnecessary blank lines removed. "
-  "Keep line breaks for readability, but collapse consecutive \n\n into one \n. Only return cleaned code as JSON field `code`."
+"""You are a code canonicalizer. Given any source code string, return the same code:
+- Remove all comments (line, inline, block)
+- Remove unnecessary blank lines (collapse multiple \n\n to a single \n)
+- Replace all variable names with placeholders (e.g., VAR_1, VAR_2)
+- Replace all function names with placeholders (e.g., FUNC_1, FUNC_2)
+- Replace all class names with placeholders (e.g., CLASS_1, CLASS_2)
+- Replace all numeric literals with NUM_1, NUM_2... and string literals with STR_1, STR_2...
+- Normalize spacing and indentation
+- Normalize equivalent syntax forms (e.g., a = a + 1 → a += 1, if (x == true) → if (x))
+- Sort import/include statements alphabetically
+- Reorder top-level function definitions in a consistent order (e.g., alphabetically)
+Only return the final cleaned code as JSON in the field 'code'
+"""
 )
 
 def normalize_code_with_gemini(raw_code: str) -> str:

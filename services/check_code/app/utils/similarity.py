@@ -3,7 +3,7 @@ import faiss  # type: ignore
 from collections import defaultdict
 from typing import List, Dict
 
-THRESHOLD = 0.97
+THRESHOLD = 0.96
 
 def find_suspicious_pairs(
   submission_info: List[Dict],
