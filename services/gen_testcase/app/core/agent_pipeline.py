@@ -12,6 +12,7 @@ from app.models.schemas import (
   Testcase
 )
 from app.core.prompt_templates import PROMPT_TEMPLATES
+from app.core.prompt_baseline import PROMPT_BASE_LINE
 import time
 
 
@@ -36,6 +37,13 @@ def call_llm(agent_type: str, **kwargs):
 class TestcaseGenerationPipeline:
   def __init__(self):
     pass
+
+  def run_baseline(self, problem_desc, solution_summary):
+    prompt = PROMPT_BASE_LINE.format(
+      problem_description=problem_desc,
+      solution_summary=solution_summary
+    )
+    return query_gemini_text(prompt)
 
   def run(
     self,

@@ -43,7 +43,7 @@ const TestcaseGeneratorPage = () => {
     "# Problem Title: Longest Increasing Subsequence\n\n## Description\n\nGiven an array of integers, find the length of its longest increasing subsequence (LIS).\n\nA subsequence is a sequence derived from the array by deleting some or no elements without changing the order of the remaining elements. The LIS must be **strictly increasing**.\n\n## Input\n\n```plaintext\nn\na_1 a_2 ... a_n\n```\n- First line: integer `n` (array size).\n- Second line: `n` integers `a_i`.\n\n## Output\n\n```plaintext\nLength of LIS.\n```\n\n## Constraints\n\n```math\n1 \\leq n \\leq 2500\n-10^9 \\leq a_i \\leq 10^9\n```"
   );
   const [solutionCode, setSolutionCode] = useState(
-    'import sys\n\ndef main():\n    input = sys.stdin.read\n    data = input().split()\n    \n    n = int(data[0])\n    arr = list(map(int, data[1:]))\n\n    dp = [1] * n\n    for i in range(1, n):\n        for j in range(i):\n            if arr[i] > arr[j]:\n                dp[i] = max(dp[i], dp[j] + 1)\n\n    print(dp[n-1])  \n\nif __name__ == "__main__":\n    main()'
+    "import bisect\n\nn = int(input())\nnums = list(map(int, input().split()))\ntails = []\n\nfor num in nums:\n    idx = bisect.bisect_left(tails, num)\n    if idx == len(tails):\n        tails.append(num)\n    else:\n        tails[idx] = num\n\nprint(len(tails))"
   );
   const [selectedProcessor, setSelectedProcessor] = useState(
     getInitialProcessor()
