@@ -25,6 +25,12 @@ class TestcaseRequest(BaseModel):
     example="c++17"
   )
 
+class CompareTestcaseRequest(BaseModel):
+  problem_description: str
+  solution_code: str
+  processor: str = "c++23"
+
+
 @router.get("/")
 def health_check():
   return {"message": "Gen Testcase Agent Service is running"}
@@ -151,3 +157,37 @@ def execute_inputs(
       })
 
   return JSONResponse(content=results)
+
+@router.post("/testcases/compare")
+def compare_testcase_generations(request: CompareTestcaseRequest):
+  pipeline = TestcaseGenerationPipeline()
+
+  try:
+    structured_result = []
+    for step in pipeline.run(
+      request.problem_description,
+      request.solution_code,
+      processor=request.processor
+    ):
+      if step["step"] == "synthesize_testcase":
+        structured_result.append(step["data"])
+
+    baseline_result = pipeline.run_baseline(
+      problem_desc=request.problem_description,
+      solution_summary="This will be auto-analyzed from code."
+    )
+
+    return JSONResponse(content={
+      "status": "ok",
+      "baseline": baseline_result,
+      "structured": structured_result
+    })
+
+  except Exception as e:
+    return JSONResponse(
+      status_code=500,
+      content={
+        "status": "error",
+        "message": str(e)
+      }
+    )
