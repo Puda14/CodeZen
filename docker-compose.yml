@@ -21,8 +21,8 @@ services:
     networks:
       - app-network
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
       RABBITMQ_HEARTBEAT: 3600
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
@@ -34,9 +34,15 @@ services:
     image: mongo:latest
     container_name: mongo
     command:
-      ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile"]
+      [
+        "--replSet",
+        "${MONGO_REPLICA_SET}",
+        "--bind_ip_all",
+        "--keyFile",
+        "/etc/mongo-keyfile",
+      ]
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT}:27017"
     volumes:
       - mongo-data:/data/db
       - ./mongo-keyfile:/etc/mongo-keyfile
@@ -60,40 +66,25 @@ services:
     command: >
       bash -c "
         echo 'Waiting for MongoDB connection...'
-        sleep 25 # Thời gian chờ ban đầu để mongo khởi động và cho phép kết nối
-
+        sleep 25
         echo 'Attempting to initiate Replica Set...'
-        mongosh --host mongo:27017 -u root -p password --authenticationDatabase admin --eval '
+        mongosh --host mongo:${MONGO_PORT} -u root -p password --authenticationDatabase admin --eval '
           printjson(rs.initiate({
-            _id: \"rs0\",
-            members: [{ _id: 0, host: \"mongo:27017\" }]
+            _id: \"${MONGO_REPLICA_SET}\",
+            members: [{ _id: 0, host: \"mongo:${MONGO_PORT}\" }]
           }));
         ' || echo 'rs.initiate may have failed or run previously.'
-
-        echo 'Waiting 10 seconds for node to potentially become primary...'
-        sleep 10 # Thêm thời gian chờ SAU KHI initiate
-
+        sleep 10
         echo 'Attempting to create user...'
-        mongosh --host mongo:27017 -u root -p password --authenticationDatabase admin --eval '
-          printjson(db.getSiblingDB(\"core-database\").createUser({
-            user: \"core\",
-            pwd: \"12345678\",
-            roles: [{ role: \"readWrite\", db: \"core-database\" }]
+        mongosh --host mongo:${MONGO_PORT} -u root -p password --authenticationDatabase admin --eval '
+          printjson(db.getSiblingDB(\"${MONGO_DB}\").createUser({
+            user: \"${MONGO_USERNAME}\",
+            pwd: \"${MONGO_PASSWORD}\",
+            roles: [{ role: \"readWrite\", db: \"${MONGO_DB}\" }]
           }));
         ' || echo 'User creation may have failed.'
-
         echo 'MongoDB initialization commands attempted.'
       "
-    networks:
-      - app-network
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     networks:
       - app-network
 
@@ -114,6 +105,16 @@ services:
       retries: 5
     privileged: true
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - app-network
+
   auth-service:
     build: ./services/auth
     ports:
@@ -123,9 +124,11 @@ services:
       - /usr/src/app/node_modules
     networks:
       - app-network
+    env_file:
+      - .env
     environment:
-      - JWT_SECRET=your-secret-key
-      - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
+      - JWT_SECRET=${JWT_SECRET}
+      - MONGO_URL=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=${MONGO_DB}&replicaSet=${MONGO_REPLICA_SET}
       - MAIL_USER=${MAIL_USER}
       - MAIL_PASS=${MAIL_PASS}
       - APP_BASE_URL=${APP_BASE_URL}
@@ -144,11 +147,13 @@ services:
       - /usr/src/app/node_modules
     networks:
       - app-network
+    env_file:
+      - .env
     environment:
-      - JWT_SECRET=your-secret-key
-      - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
-      - REDIS_URL=redis://redis:6379
-      - INTERNAL_API_KEY=your-very-secret-internal-key
+      - JWT_SECRET=${JWT_SECRET}
+      - MONGO_URL=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=${MONGO_DB}&replicaSet=${MONGO_REPLICA_SET}
+      - REDIS_URL=${REDIS_URL}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
 
   code-manager-service:
     build: ./services/code_manager
@@ -163,12 +168,14 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    env_file:
+      - .env
     environment:
-      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-      - MONGO_URL=mongodb://core:12345678@mongo:27017/core-database?authSource=core-database&replicaSet=rs0
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=your-secret-key
-      - INTERNAL_API_KEY=your-very-secret-internal-key
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      - MONGO_URL=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=${MONGO_DB}&replicaSet=${MONGO_REPLICA_SET}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
 
   code-execute-worker-service:
     build: ./services/code_execute_worker
@@ -183,10 +190,12 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    env_file:
+      - .env
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
-      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-      - INTERNAL_API_KEY=your-very-secret-internal-key
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
 
   ollama-proxy:
     image: alpine/socat
@@ -205,11 +214,11 @@ services:
     env_file:
       - .env
     environment:
-      - OLLAMA_ENDPOINT=http://ollama-proxy:11434
-      - OLLAMA_HOST=http://ollama-proxy:11434
+      - OLLAMA_ENDPOINT=${OLLAMA_ENDPOINT}
+      - OLLAMA_HOST=${OLLAMA_HOST}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - INTERNAL_API_KEY=your-very-secret-internal-key
-      - JWT_SECRET=your-secret-key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
 
   check-code-service:
     build: ./services/check_code
@@ -222,12 +231,12 @@ services:
     env_file:
       - .env
     environment:
-      - OLLAMA_ENDPOINT=http://ollama-proxy:11434
-      - OLLAMA_HOST=http://ollama-proxy:11434
+      - OLLAMA_ENDPOINT=${OLLAMA_ENDPOINT}
+      - OLLAMA_HOST=${OLLAMA_HOST}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - HF_API_KEY=${HF_API_KEY}
-      - INTERNAL_API_KEY=your-very-secret-internal-key
-      - JWT_SECRET=your-secret-key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
 
 volumes:
   mongo-data:
