@@ -32,7 +32,7 @@ You are tasked with generating ideas for test cases based on the problem descrip
 
 ### Definitions:
 - **Basic cases**: Test normal behavior of the algorithm on typical inputs.
-- **Edge cases**: Special or boundary conditions such as minimum/maximum values, empty input, all elements equal, etc.
+- **Edge cases**: Special or boundary conditions such as minimum/maximum values, all elements equal, etc.
 - **Stress cases**: Large-scale or complex scenarios designed to test performance and scalability.
 
 ### Instructions:

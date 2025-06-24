@@ -71,6 +71,14 @@ export class ContestService {
       const startTime = new Date(contestDto.start_time);
       const endTime = new Date(contestDto.end_time);
 
+      if (startTime <= nowUtc) {
+        throw new BadRequestException('Start time must be in the future');
+      }
+
+      if (endTime <= startTime) {
+        throw new BadRequestException('End time must be after start time');
+      }
+
       let status = ContestStatus.UPCOMING;
 
       if (nowUtc >= startTime && nowUtc < endTime) {
@@ -106,9 +114,7 @@ export class ContestService {
       await session.abortTransaction();
       session.endSession();
 
-      throw new InternalServerErrorException(
-        `Failed to create contest: ${error.message}`,
-      );
+      throw new InternalServerErrorException(`${error.message}`);
     }
   }
 
