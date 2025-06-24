@@ -35,6 +35,10 @@ You are tasked with generating ideas for test cases based on the problem descrip
 - **Edge cases**: Special or boundary conditions such as minimum/maximum values, all elements equal, etc.
 - **Stress cases**: Large-scale or complex scenarios designed to test performance and scalability.
 
+### Strict Constraints:
+- **Do not generate cases with empty input or no input.**
+- All test cases must have valid, non-empty input that respects the input format.
+
 ### Instructions:
 1. Return a JSON object with three keys: `"basic"`, `"edge"`, and `"stress"`.
 2. Each key maps to an array of strings, where each string describes a test case idea.
