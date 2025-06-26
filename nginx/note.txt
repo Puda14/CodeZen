@@ -10,3 +10,39 @@ curl -i -X OPTIONS http://localhost:8080/api/core/contest/registered \
 # * `proxy_pass http://core-service:8001;`: Chuyển tiếp yêu cầu đến `core-service` của bạn (nơi chứa `LeaderboardGateway`). **Hãy chắc chắn đây là đúng service và port.**
 # `proxy_http_version 1.1;`, `proxy_set_header Upgrade $http_upgrade;`, `proxy_set_header Connection "upgrade";`: Đây là các chỉ thị quan trọng để Nginx xử lý đúng yêu cầu nâng cấp kết nối lên WebSocket.
 # `add_header ...`: Thêm các header CORS cần thiết để trình duyệt ở `http://localhost:3000` có thể thực hiện các yêu cầu handshake ban đầu (thường là HTTP polling) đến `/socket.io/`.
+
+
+puda14@laptop:~/Desktop/Project/CodeZen$ ls -la
+total 60
+drwxrwxr-x 7 puda14  puda14          4096 Jun 15 21:06 .
+drwxrwxr-x 9 puda14  puda14          4096 Jun 25 13:16 ..
+-rw-rw-r-- 1 puda14  puda14          6372 Jun 16 16:48 docker-compose.yml
+-rw-rw-r-- 1 puda14  puda14           644 Jun 16 16:39 .env
+-rw-rw-r-- 1 puda14  puda14           350 Jun 16 16:40 .env.example
+drwxrwxr-x 6 puda14  puda14          4096 Jun 15 21:06 frontend
+drwxrwxr-x 8 puda14  puda14          4096 Jun 25 02:42 .git
+-rw-rw-r-- 1 puda14  puda14           126 Jun 15 21:06 .gitignore
+-r-------- 1 dnsmasq systemd-journal 1024 Apr 25 23:14 mongo-keyfile
+drwxrwxr-x 2 puda14  puda14          4096 May 31 08:33 nginx
+-rw-rw-r-- 1 puda14  puda14          5648 Apr 25 22:47 README.md
+drwxrwxr-x 8 puda14  puda14          4096 May 31 17:06 services
+drwxrwxr-x 7 puda14  puda14          4096 Jun  9 01:02 .VSCodeCounter
+
+puda14@laptop:~/Desktop/Project/CodeZen$ sudo cat mongo-keyfile
+[sudo] password for puda14:
+3CyCkomzoKdzSybc41XvD9FjT5Lqcu3vaO3ZDi7McPvzGPuojoBw8TorF2lppMQU
+p3cXysrGfg/9zmkPNt/6Vgy9zKcUBB6DdZWp2Z0ZLH72N4BeWQWrJi1RfQtg+l6I
+QZjdQ6qu3ukckjiANXjFxzFILOnmirBVaDZ5q7OVWPYvfA6CeuR6HfvW9tgrTRVf
+EFqar21R9z8tkVC/91/FIGfYMwJWiyUMvHadjdU5ont9NIxU3fd6ybKEyHzyB1iK
+7LerBL/gO4/oMn3Tk9MzZcTi2mNRV/vSREabUlOAQplB4c+cBSoDW7ta6VPJa0T1
+TSlQZ5bvh4PuUofUDO32RTHf+Ax8zpdirMB70JaTt3DKXfPPewICIPjbQHD3R4lJ
+Hn4cp1C5wyr8a/X5upJnuPC9CwLSUux6c1rUwNWyacKyI3O74Q9X+1J8eBghhlno
+0P67VzvHWqHAxYfzA2XrCKcUq0jO9TMXiPZ53kJ1AWMXCDkBks8xqDu+kXOxY1M3
+SrDzgFtgPD3rt+bKBb37YKhNlDrDsVMN/tTaQtVkCXfkeiuFfVcwZcRLmXsvzobN
+2Wt2+v2cNDvw0LIllgA+w7Pxm1mMzaY6O52yS82+Q7iubD8oX1lvrMmkcV8levfB
+appdeCbiJpyyHpjrwJ3MhXXQc2zcc+Gjd/N8IvIsnwM2PS6siDHkgAqE0jnzzsGJ
+eSeuC6pkNyWlDXvyqAj132muKRSH3V8Pd4MnrWqX8zmAWks+E+hxfMlvo9vFfOlf
+QiPwkrRZFcQIAfTsjhWmlVWVvE8DtVE1x7O4sQB7+5zieFEoviXpLS+pa4zCmHm5
+kEhk0I7HHazQgx2xfqKAVjKJ75hy5Pc9WA/xqR+EtZqJddMpjjKcvrN25VyRV59z
+kHxSPZxR7YIjsTbA7ORXZx593YW0pevrqh7FYvQawSpvbB+ichn3W81MgpN5NhgI
+FXJ2fQr+giF5YMKGCUVpYU5tLuHQ+9nPAGkfz6ANDcnds4Dx
