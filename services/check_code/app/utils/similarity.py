@@ -97,11 +97,23 @@ def group_copies_from_pairs(pairs: List[Dict], threshold: float = THRESHOLD) -> 
       root = find(sid)
       groups[root].add(sid)
 
-  result = []
+  clusters_with_score = []
   for group_ids in groups.values():
     if len(group_ids) < 2:
       continue
     cluster = [id_to_info[sid] for sid in group_ids]
-    result.append(cluster)
 
-  return result
+    sims = [
+      pair["similarity"]
+      for pair in pairs
+      if pair["submission_a"] in group_ids and pair["submission_b"] in group_ids
+    ]
+    max_sim = max(sims) if sims else 0.0
+
+    clusters_with_score.append((max_sim, cluster))
+
+  # Sort by similarity (descending)
+  clusters_with_score.sort(key=lambda x: x[0], reverse=True)
+
+  # Return only the clusters, NOT similarity scores
+  return [cluster for _, cluster in clusters_with_score]
